@@ -91,12 +91,14 @@ export function assessWaterlogging(
  * doomed by any one.
  */
 function overflowLikelihood(input: WaterloggingInputs): number {
-  const { segment, peakRainMmPerHr, effectiveDrainCapacity } = input;
+  const { segment, peakRainMmPerHr, effectiveDrainCapacity, hydrograph } = input;
 
-  // 1. Local inlets simply outmatched by rainfall intensity.
-  const designCapacityMmHr = 25 * effectiveDrainCapacity;
+  // 1. Local inlets simply outmatched by rainfall intensity. Expressed as a
+  //    ratio against working capacity: at capacity nothing happens, at three and
+  //    a half times capacity surcharge is certain.
+  const designCapacityMmHr = Math.max(3, 25 * effectiveDrainCapacity);
   const intensityRoute = clamp(
-    (peakRainMmPerHr - designCapacityMmHr) / Math.max(12, designCapacityMmHr * 1.6),
+    (peakRainMmPerHr / designCapacityMmHr - 1) / 2.5,
   );
 
   // 2. The trunk drain running full and surcharging back through the inlets.
@@ -116,7 +118,13 @@ function overflowLikelihood(input: WaterloggingInputs): number {
   // Construction narrowing the drainage section is a known aggravator.
   const constructionLift = segment.constructionObstruction ? 1.18 : 1;
 
-  return clamp((1 - survive) * constructionLift);
+  // Couple to the depth model. A drain can be nominally overwhelmed while
+  // barely any water accumulates, and reporting that as "certain overflow"
+  // alongside "4 cm of water" would be incoherent — overflow only means
+  // something once there is water to push back onto the road.
+  const materiality = clamp(hydrograph.peakDepthCm / 12);
+
+  return clamp((1 - survive) * constructionLift * materiality);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -265,11 +273,14 @@ function rankBlockages(input: BlockageInputs): BlockageRisk[] {
 
   /* Waterlogged intersection ---------------------------------------------- */
   if (segment.roadClass === "ring" || segment.roadClass === "arterial" || segment.roadClass === "highway") {
+    // Gridlock needs water on the road, not merely a chance of it. Below about
+    // 6 cm traffic slows but does not stop.
+    const ponding = clamp(peak / 18);
     push({
       kind: "waterlogged_intersection",
       label: "Junction waterlogging and gridlock",
-      likelihood: clamp(floodProbability * 0.75 + input.trafficDensity * 0.35),
-      basis: `Modelled from forecast ponding and ${Math.round(input.trafficDensity * 100)}% congestion on a ${segment.lanes}-lane ${segment.roadClass}.`,
+      likelihood: clamp(ponding * (0.55 + floodProbability * 0.3 + input.trafficDensity * 0.25)),
+      basis: `Modelled from ${Math.round(peak)} cm of forecast ponding and ${Math.round(input.trafficDensity * 100)}% congestion on a ${segment.lanes}-lane ${segment.roadClass}.`,
       consequence:
         "In Delhi the gridlock usually arrives before the water does. Traffic stops moving well below the depth that actually blocks a car.",
     });
