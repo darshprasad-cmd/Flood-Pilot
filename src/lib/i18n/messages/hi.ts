@@ -43,6 +43,8 @@ export const hi: Messages = {
     showWorking: "पूरा हिसाब दिखाएँ",
     hideWorking: "हिसाब छिपाएँ",
     offline: "ऑफ़लाइन — इस डिवाइस पर सहेजे गए पिछले हालात दिखाए जा रहे हैं।",
+    share: "इस सड़क को साझा करें",
+    copied: "लिंक कॉपी हो गया",
   },
 
   nav: {
@@ -398,6 +400,7 @@ export const hi: Messages = {
     standingWater: "8 सेमी — पानी जमा",
     impassableAt: "30 सेमी — अगम्य",
     peak: "अधिकतम",
+    shareBody: "{name} — अभी अनुमानित {depth} सेमी पानी। दिशाAI:",
   },
 
   gov: {

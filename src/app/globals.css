@@ -353,6 +353,116 @@ body {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  The intro                                                          */
+/*                                                                     */
+/*  Green because green is "safe" on the risk ramp and this product is */
+/*  not allowed to use colour decoratively — the orb is the system      */
+/*  coming alive and reporting clear. It flickers rather than fades     */
+/*  because a signal acquiring lock is not a smooth curve, and the      */
+/*  rings that leave it are water, which is the other thing this whole  */
+/*  application is about.                                              */
+/* ------------------------------------------------------------------ */
+
+@keyframes fp-orb-ignite {
+  0% {
+    opacity: 0;
+    transform: scale(0.18);
+  }
+  10% {
+    opacity: 0.85;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 0.2;
+    transform: scale(0.47);
+  }
+  23% {
+    opacity: 1;
+    transform: scale(0.72);
+  }
+  29% {
+    opacity: 0.38;
+    transform: scale(0.7);
+  }
+  36% {
+    opacity: 1;
+    transform: scale(0.88);
+  }
+  41% {
+    opacity: 0.66;
+    transform: scale(0.87);
+  }
+  52% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+/* The glow breathes slightly out of step with the core, which is what
+   stops the whole thing reading as one flat shape pulsing. */
+@keyframes fp-orb-halo {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  60% {
+    opacity: 0.85;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes fp-ripple {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.3);
+  }
+  70% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(4);
+  }
+}
+
+@keyframes fp-intro-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility animate-orb {
+  animation: fp-orb-ignite 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-orb-halo {
+  animation: fp-orb-halo 1.8s ease-out both;
+}
+
+@utility animate-ripple {
+  animation: fp-ripple 2.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-intro-out {
+  animation: fp-intro-out 0.75s ease-in both;
+}
+
 /* A slow breath under the "live" dot — the only perpetual motion allowed. */
 @keyframes fp-breathe {
   0%,

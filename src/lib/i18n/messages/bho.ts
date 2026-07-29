@@ -48,6 +48,8 @@ export const bho: Messages = {
     showWorking: "हिसाब देखाईं",
     hideWorking: "हिसाब छिपाईं",
     offline: "ऑफलाइन — एह फोन में सहेजल पहिलका हालत देखावल जात बा।",
+    share: "ई सड़क साझा करीं",
+    copied: "लिंक कॉपी हो गइल",
   },
 
   nav: {
@@ -403,6 +405,7 @@ export const bho: Messages = {
     standingWater: "8 सेमी — पानी जमल",
     impassableAt: "30 सेमी — ना चले लायक",
     peak: "सबसे जादे",
+    shareBody: "{name} — अबहीं अनुमान {depth} सेमी पानी। दिशाAI:",
   },
 
   gov: {

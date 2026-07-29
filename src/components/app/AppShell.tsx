@@ -260,6 +260,20 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
    */
   const notifiedRef = useRef<Set<string>>(new Set());
 
+  /**
+   * A shared road opens on that road.
+   *
+   * Read from `window.location.search` rather than `useSearchParams`, which is
+   * correct *here* and would not be everywhere: a shared link is always a cold
+   * page load, so the URL is already settled by the time this runs. Passing
+   * state between two of our own routes this way is the thing that does not
+   * work, because a client-side navigation has not updated `location` yet.
+   */
+  useEffect(() => {
+    const road = new URLSearchParams(window.location.search).get("road");
+    if (road) setSelectedSegmentId(road);
+  }, []);
+
   /* ── Static city data ────────────────────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;

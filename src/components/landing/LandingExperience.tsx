@@ -15,6 +15,10 @@ const CinematicMap = dynamic(() => import("@/components/map/CinematicMap"), {
   loading: () => <div className="h-full w-full bg-ink-950" />,
 });
 
+// Client-only, and never server-rendered: whether it plays at all depends on
+// sessionStorage and a media query the server cannot see.
+const IntroOrb = dynamic(() => import("./IntroOrb"), { ssr: false });
+
 /**
  * The landing page.
  *
@@ -99,6 +103,8 @@ export default function LandingExperience() {
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-ink-950">
+      <IntroOrb />
+
       <div className="absolute inset-0">
         {/* Interactive. The brief asked for a map as the background, and a map
             you cannot pan or zoom is a screenshot — the idle drift hands over

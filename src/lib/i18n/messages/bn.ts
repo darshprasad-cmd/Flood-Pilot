@@ -43,6 +43,8 @@ export const bn: Messages = {
     showWorking: "হিসেব দেখান",
     hideWorking: "হিসেব লুকান",
     offline: "অফলাইন — এই ডিভাইসে সংরক্ষিত শেষ পরিস্থিতি দেখানো হচ্ছে।",
+    share: "এই রাস্তা শেয়ার করুন",
+    copied: "লিঙ্ক কপি হয়েছে",
   },
 
   nav: {
@@ -398,6 +400,7 @@ export const bn: Messages = {
     standingWater: "৮ সেমি — জল জমা",
     impassableAt: "৩০ সেমি — চলাচলের অযোগ্য",
     peak: "সর্বোচ্চ",
+    shareBody: "{name} — এখন অনুমিত {depth} সেমি জল। दिशाAI:",
   },
 
   gov: {

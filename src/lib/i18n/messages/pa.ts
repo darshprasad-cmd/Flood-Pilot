@@ -44,6 +44,8 @@ export const pa: Messages = {
     showWorking: "ਹਿਸਾਬ ਵਿਖਾਓ",
     hideWorking: "ਹਿਸਾਬ ਲੁਕਾਓ",
     offline: "ਆਫ਼ਲਾਈਨ — ਇਸ ਫ਼ੋਨ ਵਿੱਚ ਸਾਂਭੇ ਪਿਛਲੇ ਹਾਲਾਤ ਵਿਖਾਏ ਜਾ ਰਹੇ ਹਨ।",
+    share: "ਇਹ ਸੜਕ ਸਾਂਝੀ ਕਰੋ",
+    copied: "ਲਿੰਕ ਕਾਪੀ ਹੋ ਗਿਆ",
   },
 
   nav: {
@@ -399,6 +401,7 @@ export const pa: Messages = {
     standingWater: "8 ਸੈਮੀ — ਪਾਣੀ ਜਮ੍ਹਾਂ",
     impassableAt: "30 ਸੈਮੀ — ਲੰਘਣਯੋਗ ਨਹੀਂ",
     peak: "ਵੱਧ ਤੋਂ ਵੱਧ",
+    shareBody: "{name} — ਹੁਣ ਅਨੁਮਾਨ {depth} ਸੈਮੀ ਪਾਣੀ। दिशाAI:",
   },
 
   gov: {

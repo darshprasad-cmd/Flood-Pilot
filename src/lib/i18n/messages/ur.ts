@@ -44,6 +44,8 @@ export const ur: Messages = {
     showWorking: "حساب دکھائیں",
     hideWorking: "حساب چھپائیں",
     offline: "آف لائن — اس ڈیوائس پر محفوظ پچھلے حالات دکھائے جا رہے ہیں۔",
+    share: "یہ سڑک شیئر کریں",
+    copied: "لنک کاپی ہو گیا",
   },
 
   nav: {
@@ -400,6 +402,7 @@ export const ur: Messages = {
     standingWater: "8 سینٹی میٹر — پانی جمع",
     impassableAt: "30 سینٹی میٹر — ناقابلِ گزر",
     peak: "زیادہ سے زیادہ",
+    shareBody: "{name} — ابھی اندازاً {depth} سینٹی میٹر پانی۔ दिशाAI:",
   },
 
   gov: {

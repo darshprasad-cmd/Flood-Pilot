@@ -43,6 +43,8 @@ export const mai: Messages = {
     showWorking: "हिसाब देखाउ",
     hideWorking: "हिसाब नुकाउ",
     offline: "ऑफलाइन — एहि डिवाइसमे सहेजल पछिला हालति देखाओल जा रहल अछि।",
+    share: "ई सड़क साझा करू",
+    copied: "लिंक कॉपी भ' गेल",
   },
 
   nav: {
@@ -398,6 +400,7 @@ export const mai: Messages = {
     standingWater: "8 सेमी — पानि जमल",
     impassableAt: "30 सेमी — नै चलबा योग्य",
     peak: "अधिकतम",
+    shareBody: "{name} — एखन अनुमानित {depth} सेमी पानि। दिशाAI:",
   },
 
   gov: {

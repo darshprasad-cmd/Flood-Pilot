@@ -47,6 +47,8 @@ export const en = {
     showWorking: "Show the working",
     hideWorking: "Hide the working",
     offline: "Offline — showing the last conditions saved on this device.",
+    share: "Share this road",
+    copied: "Link copied",
   },
 
   nav: {
@@ -405,6 +407,7 @@ export const en = {
     standingWater: "8 cm — standing water",
     impassableAt: "30 cm — impassable",
     peak: "Peak",
+    shareBody: "{name} — {depth} cm of water modelled right now. दिशाAI:",
   },
 
   gov: {

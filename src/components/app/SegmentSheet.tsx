@@ -20,6 +20,8 @@ import {
   type SourceUsageDto,
 } from "./panels";
 import { ReportSheet } from "./ReportSheet";
+import { useT } from "@/lib/i18n";
+import { fill } from "@/lib/i18n/fill";
 
 interface SegmentDetail {
   segment: {
@@ -175,6 +177,11 @@ export function SegmentSheet({
                   ) : null}
                 </div>
               </div>
+              <ShareRoad
+                segmentId={segmentId}
+                name={detail.segment.name}
+                depthCm={detail.segment.state.peakDepthCm}
+              />
               <button
                 type="button"
                 onClick={onClose}
@@ -506,4 +513,87 @@ function timeAgo(iso: string): string {
   if (min < 60) return `${Math.round(min)} min ago`;
   if (min < 1440) return `${Math.round(min / 60)} hr ago`;
   return `${Math.round(min / 1440)} d ago`;
+}
+
+/**
+ * Share this road.
+ *
+ * In Delhi, flood information already travels by WhatsApp — somebody sees the
+ * water at Minto Bridge and tells forty people in a group chat, and that
+ * message is what most people actually act on. The product should hand them a
+ * better version of the message they were going to send anyway: the road, the
+ * modelled depth, and a link that opens on exactly this road.
+ *
+ * Native share sheet where there is one, clipboard where there is not.
+ */
+function ShareRoad({
+  segmentId,
+  name,
+  depthCm,
+}: {
+  segmentId: string;
+  name: string;
+  depthCm: number;
+}) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    const url = `${window.location.origin}/app?road=${encodeURIComponent(segmentId)}`;
+    const text = fill(t.segment.shareBody, {
+      name,
+      depth: Math.round(depthCm),
+    });
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: name, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // A cancelled share sheet lands here too, which is not an error worth
+      // telling anybody about.
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={share}
+      aria-label={t.common.share}
+      title={copied ? t.common.copied : t.common.share}
+      className="shrink-0 rounded-lg p-1.5 text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
+    >
+      {copied ? (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M3.5 8.5l3 3 6-6.5"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M8 10.5V2.5m0 0L5.2 5.3M8 2.5l2.8 2.8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M3.5 9.5v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </button>
+  );
 }
