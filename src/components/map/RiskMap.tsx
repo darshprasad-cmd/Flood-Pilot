@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -91,6 +91,15 @@ export default function RiskMap({
   const selectHandler = useRef(onSelectSegment);
   selectHandler.current = onSelectSegment;
 
+  /**
+   * Leaflet is imported dynamically, so map creation is asynchronous while the
+   * data effects are not. Without an explicit readiness flag in their
+   * dependency lists, a fast API response wins the race: the draw effects run
+   * against a null layer group, bail out, and — because their data has not
+   * changed since — never run again, leaving a basemap with no roads on it.
+   */
+  const [ready, setReady] = useState(false);
+
   /* ── Create the map once ────────────────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +117,11 @@ export default function RiskMap({
         zoom: 11,
         zoomControl: true,
         attributionControl: true,
-        preferCanvas: true,
+        // SVG rather than canvas. At this scale (a few hundred polylines) canvas
+        // buys nothing, and SVG gives crisper lines, per-road DOM elements for
+        // hover and click, and CSS animation — which the flowing dash on the
+        // recommended route depends on.
+        renderer: leaflet.svg(),
       });
 
       leaflet
@@ -138,6 +151,7 @@ export default function RiskMap({
       }
 
       mapRef.current = map;
+      setReady(true);
       // Tiles occasionally lay out before the container has its final size.
       setTimeout(() => map.invalidateSize(), 120);
     }
@@ -148,6 +162,7 @@ export default function RiskMap({
       cancelled = true;
       mapRef.current?.remove();
       mapRef.current = null;
+      setReady(false);
     };
     // Intentionally once: subsequent prop changes are handled by the draw effects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,7 +238,7 @@ export default function RiskMap({
           .addTo(group);
       }
     }
-  }, [segments, selectedSegmentId]);
+  }, [ready, segments, selectedSegmentId]);
 
   /* ── Trunk drains ───────────────────────────────────────────────────── */
   useEffect(() => {
@@ -255,7 +270,7 @@ export default function RiskMap({
         )
         .addTo(group);
     }
-  }, [drains, showDrains]);
+  }, [ready, drains, showDrains]);
 
   /* ── Routes ─────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -302,7 +317,7 @@ export default function RiskMap({
     if (all.length > 1) {
       map.fitBounds(leaflet.latLngBounds(all), { padding: [56, 56], maxZoom: 14 });
     }
-  }, [routes]);
+  }, [ready, routes]);
 
   /* ── Markers ────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -330,7 +345,7 @@ export default function RiskMap({
         .bindTooltip(escapeHtml(marker.label), { direction: "top" })
         .addTo(group);
     }
-  }, [markers]);
+  }, [ready, markers]);
 
   return <div ref={containerRef} className={`h-full w-full ${className}`} />;
 }
