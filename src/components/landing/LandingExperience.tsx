@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Lockup } from "@/components/brand/Logo";
+import { Mark, Wordmark } from "@/components/brand/Logo";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { BRAND } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
@@ -120,11 +120,9 @@ export default function LandingExperience() {
           the things that are actually controls. Otherwise a full-width bar
           silently eats every drag that starts along the top of the map. */}
       <header className="safe-top pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-4 px-4 py-4 sm:px-8">
-        {/* The name goes where the name always goes, and it opens the app —
-            people click a wordmark expecting it to do something. */}
-        <Link href="/app" data-touch className="pointer-events-auto">
-          <Lockup size={15} />
-        </Link>
+        {/* No wordmark up here: it is the same name at a quarter of the size,
+            a few centimetres above itself. */}
+        <span aria-hidden />
         <nav className="pointer-events-auto ms-auto flex items-center gap-1 sm:gap-2">
           <Link
             href="/about"
@@ -142,61 +140,82 @@ export default function LandingExperience() {
       </div>
 
       {/* ── The one thing to do ──────────────────────────────────────────── */}
-      <div className="safe-bottom pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-5 sm:justify-start sm:px-8 sm:pb-10">
-        <div className="animate-arrive w-full max-w-[30rem]">
-          <div className="float-card pointer-events-auto p-6 sm:p-7">
-            <p className="eyebrow mb-3.5 flex items-center gap-2">
+      {/* The name is the door. Centred, full size, and the whole lockup is the
+          link — the first thing anyone sees on this URL should also be the
+          thing they can act on, without hunting for a button. */}
+      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
+        <div className="animate-arrive flex w-full max-w-[32rem] flex-col items-center text-center">
+          <Link
+            href="/app?begin=1"
+            data-touch
+            className="group pointer-events-auto flex w-full flex-col items-center rounded-[26px] px-5 py-6 transition-transform duration-500 ease-[var(--ease-spring)] hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-signal-500 focus-visible:outline-none active:scale-[0.99] sm:px-8 sm:py-8"
+          >
+            <span className="eyebrow mb-5 flex items-center gap-2">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-breathe absolute inset-0 rounded-full bg-risk-safe" />
                 <span className="absolute inset-0 rounded-full bg-risk-safe/70" />
               </span>
               {t.landing.eyebrow}
-            </p>
+            </span>
 
-            <h1 className="text-balance text-[28px] font-semibold leading-[1.1] tracking-tight sm:text-[34px]">
+            <span className="relative mb-5 flex items-center justify-center">
+              <span
+                className="absolute h-24 w-24 rounded-full blur-2xl transition-opacity duration-500 group-hover:opacity-90"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(43,140,240,0.5), transparent 70%)",
+                  opacity: 0.6,
+                }}
+                aria-hidden
+              />
+              <Mark size={58} className="relative text-fg-muted" />
+            </span>
+
+            <Wordmark
+              size={54}
+              className="drop-shadow-[0_2px_20px_rgba(5,7,11,0.9)]"
+            />
+
+            <h1 className="mt-4 max-w-[22rem] text-balance text-[17px] font-medium leading-snug text-fg sm:text-[19px]">
               {t.landing.title}
             </h1>
 
-            <p className="mt-4 text-[13.5px] leading-relaxed text-fg-muted">
+            <p className="mt-3 max-w-[25rem] text-balance text-[13px] leading-relaxed text-fg-muted">
               {t.landing.lede}
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/app"
-                data-touch
-                className="group inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signal-500 px-6 text-[14px] font-semibold text-white shadow-lg shadow-signal-600/25 transition-all hover:bg-signal-400 hover:shadow-signal-500/30"
+            <span className="mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-signal-500 px-7 text-[15px] font-semibold text-white shadow-lg shadow-signal-600/30 transition-colors group-hover:bg-signal-400">
+              {returning ? t.landing.resume : t.landing.primaryCta}
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                className="transition-transform duration-300 group-hover:translate-x-0.5"
+                aria-hidden
               >
-                {returning ? t.landing.resume : t.landing.primaryCta}
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  className="transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                >
-                  <path
-                    d="M3 8h9m0 0L8.5 4.5M12 8l-3.5 3.5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </Link>
-              <Link
-                href="/about"
-                data-touch
-                className="inline-flex min-h-12 items-center rounded-xl border border-line-bright px-5 text-[13.5px] font-medium text-fg-muted transition-colors hover:text-fg"
-              >
-                {t.landing.secondaryCta}
-              </Link>
-            </div>
+                <path
+                  d="M3 8h9m0 0L8.5 4.5M12 8l-3.5 3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </Link>
 
-            <p className="mt-3.5 text-[11px] leading-relaxed text-fg-faint">
+          <div className="pointer-events-auto mt-1 flex flex-col items-center gap-2.5">
+            <p className="text-[11.5px] leading-relaxed text-fg-faint">
               {returning ? BRAND.meaning : t.landing.setupTime}
             </p>
+            <Link
+              href="/about"
+              data-touch
+              className="inline-flex min-h-11 items-center text-[12.5px] font-medium text-fg-muted underline decoration-line-bright underline-offset-4 transition-colors hover:text-fg"
+            >
+              {t.landing.secondaryCta}
+            </Link>
           </div>
         </div>
       </div>

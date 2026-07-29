@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mark, Wordmark } from "@/components/brand/Logo";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { haversineM } from "@/lib/core/math";
@@ -90,6 +90,26 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [draft, setDraft] = useState<UserProfile>(profile);
   const [stepId, setStepId] = useState<StepId>("welcome");
   const [query, setQuery] = useState("");
+
+  /**
+   * Arriving from the landing page, where the wordmark has already been
+   * clicked.
+   *
+   * Showing a second identical launch screen would make people press the same
+   * name twice to get anywhere. Instead the first paint keeps the India camera
+   * — so the flight down to Delhi still happens and the click still *reads* as
+   * a zoom — and the first question opens on its own a beat later.
+   */
+  const handedOver = useRef(
+    typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("begin"),
+  );
+
+  useEffect(() => {
+    if (!handedOver.current) return;
+    const timer = setTimeout(() => setStepId("home"), 260);
+    return () => clearTimeout(timer);
+  }, []);
 
   const finish = useCallback(
     (over?: Partial<UserProfile>) => {
@@ -294,7 +314,9 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           }`}
         >
           {stepId === "welcome" ? (
-            <Welcome onBegin={() => go(1)} />
+            // Nothing during the hand-over beat, so the wordmark does not
+            // flash up a second time on its way past.
+            handedOver.current ? null : <Welcome onBegin={() => go(1)} />
           ) : stepId === "building" ? (
             <Building />
           ) : (
