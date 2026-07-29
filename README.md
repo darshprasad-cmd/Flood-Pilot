@@ -1,13 +1,20 @@
-# FloodPilot
+# दिशाAI
 
-**AI Urban Flood Intelligence for Delhi NCR.**
+**Know the Safest Way Forward.**
 
-FloodPilot is not a weather dashboard. It predicts where Delhi waterlogs, how
-deep, and when — then tells one specific person, in one specific vehicle, on one
+दिशा (*disha*) is Hindi for direction — not merely a heading, but the right
+path. With AI it says what this is in two syllables: an intelligence that tells
+you which way to go.
+
+दिशाAI is not a weather dashboard. It predicts where Delhi waterlogs, how deep,
+and when — then tells one specific person, in one specific vehicle, on one
 specific journey, what to do about it.
 
 Every recommendation carries its reasoning. Every prediction carries a confidence
 score that is earned from the state of its inputs, not printed for reassurance.
+
+> The GitHub repository is still named `Flood-Pilot`, from before the rebrand.
+> The package, the product and every user-facing string are दिशाAI.
 
 ---
 
@@ -17,17 +24,50 @@ score that is earned from the state of its inputs, not printed for reassurance.
 npm install && npm run dev
 ```
 
-Open <http://localhost:3000> and click **Launch App**. No API keys, no database,
-no sign-up — it runs on live open data out of the box.
+Open <http://localhost:3000>. No API keys, no database, no sign-up — it runs on
+live open data out of the box.
 
 | Route | What it is |
 | --- | --- |
-| `/` | Landing page |
-| `/app` | The application |
+| `/` | The map. Live Delhi risk, one action, nothing else |
+| `/app` | First run: the onboarding conversation. After that: your dashboard |
+| `/about` | Mechanisms, architecture, data sources and the honest limits |
 | `/gov` | Operations dashboard (access-gated) |
 
 The development access code for the operations dashboard is
 `delhi-flood-control`. Set `GOV_ACCESS_CODE` to change it.
+
+---
+
+## What opening it feels like
+
+The landing page is the product running, not a page about it: Delhi's actual
+roads coloured by their actual risk, live conditions in the corner, one obvious
+thing to do next. It opens on India and comes down to the city, because that is
+the thesis in one gesture.
+
+First run is a conversation over that map rather than a registration form.
+India → Delhi NCR → your locality → your street, one question at a time, with
+the camera flying to each answer. Only questions that change an answer get
+asked: somebody who takes the Metro is never asked what they drive.
+
+Then **Today** — the screen you open at 07:40 with rain on the window:
+
+- Is it safe to travel? — one sentence, and the reason under it
+- Should I move my car? — asked only if you told it about a basement
+- Is my area at risk? — your neighbourhood, not the city
+- Which route is safest?
+- What should I expect?
+
+Everything technical still exists behind a **Simple / Detailed** switch:
+probabilities, confidence, hydrology, feature contributions, provenance and the
+agent trace. Nothing is removed — hiding a confidence score you did not earn
+would be dishonest; hiding one from somebody who only asked whether they can get
+to work is manners.
+
+The whole profile lives in `localStorage`. There is no account, no server-side
+profile and no identifier — the correct default for something that knows where
+you sleep and what time you leave the house.
 
 ---
 
@@ -82,7 +122,7 @@ the problem: Delhi has very little gravity available to move water.
 ## Data sources
 
 Official Indian government sources are preferred for every signal they cover.
-Where they require credentials, FloodPilot falls through to an open source and
+Where they require credentials, दिशाAI falls through to an open source and
 **says so** — every prediction lists which provider actually answered.
 
 | Source | Provides | Status |
@@ -160,11 +200,17 @@ Four layers, each only aware of the one below it. See
 [`docs/ROADMAP.md`](docs/ROADMAP.md) for what is next.
 
 ```
-Surfaces    landing · citizen app · operations dashboard
+Surfaces    map landing · onboarding · Today · journey · operations dashboard
 Agents      prediction · route · vehicle · decision · infrastructure · citizen
 Engines     hazard model · risk graph · routing · survivability · calibration
 Signals     IMD · CWC · Google · OSM · Open-Meteo · citizen reports
 ```
+
+There are two map components, deliberately. `RiskMap` is the instrument —
+clicked, hovered, read off. `CinematicMap` is scenery being flown through, and
+carries the landing and the onboarding. Bolting a camera and a non-interactive
+mode onto the instrument would put cinematic behaviour one bad conditional away
+from the screen people rely on during a flood.
 
 **Adding a city is a data exercise.** Supply GIS layers, a drainage network,
 historical flood records and source preferences as a `CityPlugin`. The hazard
@@ -196,7 +242,9 @@ Swapping it means implementing one interface.
   in this build. They are reviewed but unverified.
 - Traffic is modelled from time of day, road class and rainfall unless a Google
   key is present.
-- FloodPilot is **decision support, not an emergency service.** In an emergency:
+- Translations have **not been reviewed by native speakers.** See
+  [`docs/I18N.md`](docs/I18N.md).
+- दिशाAI is **decision support, not an emergency service.** In an emergency:
   Delhi Flood Control Room 1800-11-0093 · DDMA 1077 · Traffic Police 1095.
 
 ---

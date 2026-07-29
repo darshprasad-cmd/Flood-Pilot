@@ -1,4 +1,4 @@
-# FloodPilot Architecture
+# दिशाAI Architecture
 
 Four stacked layers. Each layer only knows about the one below it, so any single
 layer can be replaced without touching the others.

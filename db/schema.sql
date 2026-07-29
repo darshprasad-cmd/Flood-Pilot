@@ -1,4 +1,4 @@
--- FloodPilot PostGIS schema
+-- दिशाAI PostGIS schema
 --
 -- The internal GIS layers the platform maintains: road segments, drain
 -- networks, flood hotspots, waterlogging history and risk zones — plus the
