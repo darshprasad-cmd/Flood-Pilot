@@ -246,17 +246,21 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
       {/* ── Chrome ───────────────────────────────────────────────────────── */}
       <header className="safe-top absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4">
+        {/* The launch screen carries the wordmark at full size in the middle
+            of the display, so repeating it up here would just be two of them. */}
         <div className="flex items-center gap-2.5">
-          <Mark size={22} className="text-fg-muted" />
-          <div>
-            <Wordmark size={14} />
-            <p
-              key={place}
-              className="animate-fade text-[10.5px] uppercase tracking-[0.14em] text-fg-faint"
-            >
-              {place}
-            </p>
-          </div>
+          {stepId === "welcome" ? null : (
+            <>
+              <Mark size={22} className="text-fg-muted" />
+              <Wordmark size={14} />
+            </>
+          )}
+          <p
+            key={place}
+            className="animate-fade text-[10.5px] uppercase tracking-[0.14em] text-fg-faint"
+          >
+            {place}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -274,8 +278,21 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       </header>
 
       {/* ── The conversation ─────────────────────────────────────────────── */}
-      <div className="safe-bottom absolute inset-x-0 bottom-0 z-20 flex justify-center p-4 sm:justify-start sm:p-8">
-        <div key={stepId} className="animate-arrive w-full max-w-[27rem]">
+      {/* The launch screen owns the middle of the display; every question
+          after it sits down in the corner so the map stays the subject. */}
+      <div
+        className={
+          stepId === "welcome"
+            ? "absolute inset-0 z-20 flex items-center justify-center p-4"
+            : "safe-bottom absolute inset-x-0 bottom-0 z-20 flex justify-center p-4 sm:justify-start sm:p-8"
+        }
+      >
+        <div
+          key={stepId}
+          className={`animate-arrive w-full ${
+            stepId === "welcome" ? "max-w-[32rem]" : "max-w-[27rem]"
+          }`}
+        >
           {stepId === "welcome" ? (
             <Welcome onBegin={() => go(1)} />
           ) : stepId === "building" ? (
@@ -404,24 +421,69 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The launch screen.
+ *
+ * The name *is* the button. A small "Begin" tucked under a paragraph in a card
+ * in the corner is something people have to go looking for, and nobody hunts
+ * for the entrance to a product they have not decided to want yet — so the
+ * whole lockup is one enormous target, centred, and tapping anywhere on it
+ * flies the camera into Delhi and opens the first question.
+ *
+ * The filled pill stays even though the entire block is clickable. Making a
+ * thing tappable is not the same as telling somebody it is tappable.
+ */
 function Welcome({ onBegin }: { onBegin: () => void }) {
   const t = useT();
   return (
-    <div className="float-card p-6 sm:p-7">
-      <h1 className="text-balance text-[26px] font-semibold leading-[1.14] tracking-tight sm:text-[30px]">
-        {t.onboarding.welcomeTitle}
-      </h1>
-      <p className="mt-3.5 text-[13.5px] leading-relaxed text-fg-muted">
-        {t.onboarding.welcomeBody}
-      </p>
+    <div className="flex flex-col items-center text-center">
       <button
         type="button"
         onClick={onBegin}
-        className="mt-6 min-h-12 w-full rounded-xl bg-signal-500 px-5 text-[14px] font-semibold text-white shadow-lg shadow-signal-600/25 transition-colors hover:bg-signal-400"
+        aria-label={t.onboarding.welcomeCta}
+        className="group flex w-full flex-col items-center rounded-[26px] px-5 py-6 transition-transform duration-500 ease-[var(--ease-spring)] hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-signal-500 focus-visible:outline-none active:scale-[0.99] sm:px-8 sm:py-8"
       >
-        {t.onboarding.welcomeCta}
+        <span className="relative mb-5 flex items-center justify-center">
+          <span
+            className="absolute h-24 w-24 rounded-full blur-2xl transition-opacity duration-500 group-hover:opacity-90"
+            style={{ background: "radial-gradient(circle, rgba(43,140,240,0.5), transparent 70%)", opacity: 0.6 }}
+            aria-hidden
+          />
+          <Mark size={58} className="relative text-fg-muted" />
+        </span>
+
+        <Wordmark size={54} className="drop-shadow-[0_2px_20px_rgba(5,7,11,0.9)]" />
+
+        <span className="mt-4 max-w-[22rem] text-balance text-[17px] font-medium leading-snug text-fg sm:text-[19px]">
+          {t.onboarding.welcomeTitle}
+        </span>
+
+        <span className="mt-3 max-w-[24rem] text-balance text-[13px] leading-relaxed text-fg-muted">
+          {t.onboarding.welcomeBody}
+        </span>
+
+        <span className="mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-signal-500 px-7 text-[15px] font-semibold text-white shadow-lg shadow-signal-600/30 transition-colors group-hover:bg-signal-400">
+          {t.onboarding.welcomeCta}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="transition-transform duration-300 group-hover:translate-x-0.5"
+            aria-hidden
+          >
+            <path
+              d="M3 8h9m0 0L8.5 4.5M12 8l-3.5 3.5"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
       </button>
-      <p className="mt-3 text-center text-[11px] text-fg-faint">
+
+      <p className="mt-1 px-6 text-[11.5px] leading-relaxed text-fg-faint">
         {t.onboarding.welcomeNote}
       </p>
     </div>

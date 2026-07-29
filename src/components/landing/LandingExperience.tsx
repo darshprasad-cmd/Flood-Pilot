@@ -120,7 +120,11 @@ export default function LandingExperience() {
           the things that are actually controls. Otherwise a full-width bar
           silently eats every drag that starts along the top of the map. */}
       <header className="safe-top pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-4 px-4 py-4 sm:px-8">
-        <Lockup size={15} />
+        {/* The name goes where the name always goes, and it opens the app —
+            people click a wordmark expecting it to do something. */}
+        <Link href="/app" data-touch className="pointer-events-auto">
+          <Lockup size={15} />
+        </Link>
         <nav className="pointer-events-auto ms-auto flex items-center gap-1 sm:gap-2">
           <Link
             href="/about"
