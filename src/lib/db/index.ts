@@ -1,4 +1,5 @@
 import { MemoryStore } from "./memory-store";
+import { PostgisStore } from "./postgis-store";
 import type { FloodPilotStore } from "./types";
 
 /**
@@ -18,9 +19,19 @@ const globalRef = globalThis as typeof globalThis & {
 
 export function getStore(): FloodPilotStore {
   if (!globalRef.__floodpilotStore) {
-    globalRef.__floodpilotStore = new MemoryStore();
+    const url = process.env.DATABASE_URL?.trim();
+    // Constructing PostgisStore is cheap — it defers loading the `pg` driver
+    // until its first query, so importing it here costs nothing when unused.
+    globalRef.__floodpilotStore = url
+      ? new PostgisStore(url)
+      : new MemoryStore();
   }
   return globalRef.__floodpilotStore;
+}
+
+/** Which persistence layer is actually active, for the status surfaces. */
+export function storeName(): string {
+  return getStore().name;
 }
 
 export function hasSeededDemoData(): boolean {

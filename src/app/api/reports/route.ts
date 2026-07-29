@@ -3,6 +3,7 @@ import { DEFAULT_CITY_ID, cityExists } from "@/lib/cities/registry";
 import { getStore } from "@/lib/db";
 import { REPORT_TYPES, type ReportType } from "@/lib/db/types";
 import { invalidateEngineCache, runFloodEngine } from "@/lib/engine";
+import { invalidateCalibration } from "@/lib/engine/calibration";
 import { getCityGraph } from "@/lib/graph";
 import { resolveScenario } from "@/lib/signals/scenarios";
 
@@ -128,7 +129,9 @@ export async function POST(request: Request) {
     console.error("[api/reports] outcome recording failed", error);
   }
 
-  // The next prediction should reflect this report rather than a cached one.
+  // The next prediction must reflect this report — both the report signal and
+  // the learned correction it just contributed to.
+  invalidateCalibration(cityId);
   invalidateEngineCache(cityId);
 
   return NextResponse.json({ report }, { status: 201 });

@@ -113,6 +113,21 @@ export function computeCalibration(
   return result;
 }
 
+/**
+ * Drop the cached calibration for a city.
+ *
+ * Must be called whenever a new outcome is recorded. Without this the report
+ * signal moves the prediction immediately but the *learned correction* lags by
+ * up to the cache TTL — which makes the live-learning loop look broken to
+ * anyone who submits a report and watches the number.
+ */
+export function invalidateCalibration(cityId?: string): void {
+  const cache = globalRef.__floodpilotCalibration;
+  if (!cache) return;
+  if (cityId) cache.delete(cityId);
+  else cache.clear();
+}
+
 export const NEUTRAL_CALIBRATION: SegmentCalibration = {
   segmentId: "",
   logitBias: 0,
