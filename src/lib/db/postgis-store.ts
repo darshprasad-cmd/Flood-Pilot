@@ -1,3 +1,5 @@
+﻿import type { Severity } from "@/lib/community/types";
+import { isFloodPositive } from "./memory-store";
 import type {
   CitizenReport,
   FloodPilotStore,
@@ -78,18 +80,21 @@ export class PostgisStore implements FloodPilotStore {
 
     const { rows } = await db.query<DbReport>(
       `INSERT INTO citizen_report
-         (id, city_id, segment_id, type, depth_cm, note, reporter_id,
-          reporter_trust, geom)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
-               ST_SetSRID(ST_MakePoint($10,$9), 4326)::geography)
+         (id, city_id, segment_id, type, severity, depth_cm, lanes_blocked,
+          description, photo_url, reporter_id, reporter_trust, geom)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+               ST_SetSRID(ST_MakePoint($13,$12), 4326)::geography)
        RETURNING *, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng`,
       [
         id,
         input.cityId,
         input.segmentId,
         input.type,
+        input.severity,
         input.depthCm,
-        input.note,
+        input.lanesBlocked,
+        input.description,
+        input.photoUrl,
         input.reporterId,
         input.reporterTrust ?? 0.6,
         input.at.lat,
@@ -101,7 +106,7 @@ export class PostgisStore implements FloodPilotStore {
     // a report carries; disagreement lowers it.
     await db.query(
       `WITH neighbours AS (
-         SELECT id, (type IN ('flooded_road','vehicle_stalled')) AS positive
+         SELECT id, (type IN ('waterlogging','vehicle_stalled','overflowing_drain')) AS positive
          FROM citizen_report
          WHERE segment_id = $1
            AND id <> $2
@@ -119,7 +124,7 @@ export class PostgisStore implements FloodPilotStore {
       [
         input.segmentId,
         id,
-        input.type === "flooded_road" || input.type === "vehicle_stalled",
+        isFloodPositive(input.type),
       ],
     );
 
@@ -223,8 +228,11 @@ interface DbReport {
   city_id: string;
   segment_id: string;
   type: string;
+  severity: string;
   depth_cm: number | null;
-  note: string | null;
+  lanes_blocked: number | null;
+  description: string | null;
+  photo_url: string | null;
   reporter_id: string;
   reporter_trust: number;
   corroborations: number;
@@ -255,8 +263,11 @@ function mapReport(row: DbReport): CitizenReport {
     segmentId: row.segment_id,
     type: row.type as CitizenReport["type"],
     at: { lat: row.lat, lng: row.lng },
+    severity: (row.severity ?? "moderate") as Severity,
     depthCm: row.depth_cm,
-    note: row.note,
+    lanesBlocked: row.lanes_blocked,
+    description: row.description,
+    photoUrl: row.photo_url,
     reporterId: row.reporter_id,
     reporterTrust: row.reporter_trust,
     corroborations: row.corroborations,

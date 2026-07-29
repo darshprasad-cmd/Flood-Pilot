@@ -58,7 +58,7 @@ export async function buildReportField(
     }
 
     switch (report.type) {
-      case "flooded_road":
+      case "waterlogging":
         reading.netFloodSignal += weight;
         addDepth(report.segmentId, report.depthCm, weight);
         break;
@@ -69,6 +69,15 @@ export async function buildReportField(
         reading.stalledVehicles += 1;
         addDepth(report.segmentId, report.depthCm, weight);
         break;
+      case "overflowing_drain":
+        // Water on the road, arriving from the drain rather than the sky.
+        reading.netFloodSignal += weight * 0.8;
+        reading.drainBlockageSignal += reportWeight(
+          report,
+          ageMin,
+          BLOCKAGE_HALF_LIFE_MIN,
+        );
+        break;
       case "road_clear":
         reading.netFloodSignal -= weight * 0.85;
         break;
@@ -78,6 +87,10 @@ export async function buildReportField(
           ageMin,
           BLOCKAGE_HALF_LIFE_MIN,
         );
+        break;
+      default:
+        // Every other report type describes an obstruction rather than water,
+        // and is consumed by the road-intelligence layer instead.
         break;
     }
   }

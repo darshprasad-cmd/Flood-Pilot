@@ -5,6 +5,7 @@ import { buildConfidence } from "@/lib/core/types";
 import { runFloodEngine, type EngineResult } from "@/lib/engine";
 import type { CityGraph } from "@/lib/graph/city-graph";
 import type { HazardPrediction } from "@/lib/hazard/types";
+import type { RoadIntelligence } from "@/lib/intelligence/road-attributes";
 import { planRoutes } from "@/lib/routing/safe-route";
 import type { RouteComparison, RouteRequest } from "@/lib/routing/types";
 import type { ScenarioId } from "@/lib/signals/scenarios";
@@ -123,6 +124,8 @@ export interface RouteAgentInput {
   graph: CityGraph;
   predictions: Map<string, HazardPrediction>;
   request: RouteRequest;
+  /** Community-derived road attributes; routing degrades gracefully without. */
+  intelligence?: Map<string, RoadIntelligence>;
 }
 
 /**
@@ -143,7 +146,12 @@ export class RouteAgent implements Agent<RouteAgentInput, RouteComparison | null
 
   async run(input: RouteAgentInput) {
     const startedAt = Date.now();
-    const comparison = planRoutes(input.graph, input.predictions, input.request);
+    const comparison = planRoutes(
+      input.graph,
+      input.predictions,
+      input.request,
+      input.intelligence,
+    );
 
     return envelope({
       data: comparison,

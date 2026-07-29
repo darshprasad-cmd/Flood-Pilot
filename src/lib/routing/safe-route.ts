@@ -9,6 +9,10 @@ import { depthAtMinute } from "@/lib/engine/hydrology";
 import type { CityGraph } from "@/lib/graph/city-graph";
 import type { RoadSegment, SegmentState } from "@/lib/graph/types";
 import type { HazardPrediction } from "@/lib/hazard/types";
+import {
+  communityPenaltyMin,
+  type RoadIntelligence,
+} from "@/lib/intelligence/road-attributes";
 import { assessSurvivability } from "@/lib/vehicles/survivability";
 import type { VehicleProfile } from "@/lib/vehicles/types";
 import type {
@@ -40,9 +44,18 @@ export function planRoutes(
   graph: CityGraph,
   predictions: Map<string, HazardPrediction>,
   request: RouteRequest,
+  /**
+   * Community-derived road attributes.
+   *
+   * Optional so routing still works before the community layer has run, but
+   * when present it is what makes this more than flood-aware routing: signal
+   * delay, reported lane blockage, accident risk, construction and how reliable
+   * our own predictions have been on each road all enter the cost.
+   */
+  intelligence?: Map<string, RoadIntelligence>,
 ): RouteComparison | null {
-  const fastest = search(graph, predictions, request, "fastest");
-  const safest = search(graph, predictions, request, "safest");
+  const fastest = search(graph, predictions, request, "fastest", intelligence);
+  const safest = search(graph, predictions, request, "safest", intelligence);
 
   if (!fastest || !safest) return null;
 
@@ -106,6 +119,7 @@ function search(
   predictions: Map<string, HazardPrediction>,
   request: RouteRequest,
   mode: RouteMode,
+  intelligence?: Map<string, RoadIntelligence>,
 ): RouteResult | null {
   const { originNodeId, destinationNodeId, vehicle, departInMin } = request;
   if (!graph.getNode(originNodeId) || !graph.getNode(destinationNodeId)) return null;
@@ -144,14 +158,19 @@ function search(
       const state = graph.getState(segment.id);
       const prediction = predictions.get(segment.id);
 
-      const travelMin = travelTime(segment, state);
+      const intel = intelligence?.get(segment.id);
+      const travelMin = travelTime(segment, state, intel);
       const arrivalMin = departInMin + current.timeMin;
       const depthCm = depthOnArrival(prediction, arrivalMin);
 
+      // Both searches pay the real-world delay — a maps app would too. Only the
+      // risk-weighted search pays the *risk*.
       const stepCost =
         mode === "fastest"
           ? travelMin
-          : travelMin + riskPenaltyMin(segment, state, depthCm, vehicle);
+          : travelMin +
+            riskPenaltyMin(segment, state, depthCm, vehicle) +
+            communityPenaltyMin(intel);
 
       if (!Number.isFinite(stepCost)) continue;
 
@@ -177,8 +196,24 @@ function search(
   return buildResult(graph, predictions, request, mode, best);
 }
 
-/** Free-flow time adjusted by congestion. */
-function travelTime(segment: RoadSegment, state: SegmentState | undefined): number {
+/**
+ * Free-flow time adjusted by congestion, plus every other source of delay we
+ * know about.
+ *
+ * When road intelligence is available it supersedes the congestion-only
+ * estimate, because it already accounts for signal waits, blocked lanes,
+ * standing water and roadworks — all of which a travel-time model that looks
+ * only at congestion systematically misses.
+ */
+function travelTime(
+  segment: RoadSegment,
+  state: SegmentState | undefined,
+  intel?: RoadIntelligence,
+): number {
+  const freeFlowMin = (segment.lengthM / 1000 / segment.speedLimitKph) * 60;
+
+  if (intel) return freeFlowMin + intel.estimatedDelayMin;
+
   const density = state?.trafficDensity ?? 0.4;
   const delayFactor = 1 + 2.6 * density ** 2.1;
   const speedKph = Math.max(5, segment.speedLimitKph / delayFactor);

@@ -212,9 +212,16 @@ CREATE TABLE IF NOT EXISTS citizen_report (
   id             TEXT PRIMARY KEY,
   city_id        TEXT NOT NULL REFERENCES city(id) ON DELETE CASCADE,
   segment_id     TEXT NOT NULL REFERENCES road_segment(id) ON DELETE CASCADE,
+  -- waterlogging | overflowing_drain | drain_blockage | road_closure |
+  -- accident | heavy_congestion | construction | metro_construction |
+  -- fallen_tree | power_lines_down | broken_down_vehicle | vehicle_stalled |
+  -- emergency_vehicles | pothole | water_tanker | road_clear
   type           TEXT NOT NULL,
+  severity       TEXT NOT NULL DEFAULT 'moderate',
   depth_cm       REAL,
-  note           TEXT,
+  lanes_blocked  SMALLINT,
+  description    TEXT,
+  photo_url      TEXT,
   reporter_id    TEXT NOT NULL,
   reporter_trust REAL NOT NULL DEFAULT 0.6,
   corroborations SMALLINT NOT NULL DEFAULT 0,

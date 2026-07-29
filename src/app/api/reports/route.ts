@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_CITY_ID, cityExists } from "@/lib/cities/registry";
+import {
+  REPORT_META,
+  REPORT_TYPES,
+  SEVERITIES,
+  type ReportType,
+  type Severity,
+} from "@/lib/community/types";
+import { verifyReport } from "@/lib/community/verification";
 import { getStore } from "@/lib/db";
-import { REPORT_TYPES, type ReportType } from "@/lib/db/types";
 import { invalidateEngineCache, runFloodEngine } from "@/lib/engine";
 import { invalidateCalibration } from "@/lib/engine/calibration";
 import { getCityGraph } from "@/lib/graph";
+import { sampleWeather } from "@/lib/signals";
 import { resolveScenario } from "@/lib/signals/scenarios";
 
 export const dynamic = "force-dynamic";
 
-/** Recent citizen reports for a city. */
+/** Recent community reports for a city. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const cityId = url.searchParams.get("city") ?? DEFAULT_CITY_ID;
@@ -24,7 +32,7 @@ export async function GET(request: Request) {
     cityId,
     segmentId,
     withinMin: Number.isFinite(withinMin) ? withinMin : 1440,
-    limit: 200,
+    limit: 300,
   });
 
   return NextResponse.json({ reports, count: reports.length });
@@ -34,8 +42,11 @@ interface ReportBody {
   city?: string;
   segmentId?: string;
   type?: ReportType;
+  severity?: Severity;
   depthCm?: number | null;
-  note?: string | null;
+  lanesBlocked?: number | null;
+  description?: string | null;
+  photoUrl?: string | null;
   lat?: number;
   lng?: number;
   reporterId?: string;
@@ -43,16 +54,18 @@ interface ReportBody {
 }
 
 /**
- * Submit a citizen report.
+ * Submit a community report.
  *
- * This is the live-learning loop closing. A report does three things: it feeds
- * the report signal that adjusts predictions immediately, it records an outcome
- * against whatever the model predicted for that road, and — through the
- * calibration term — it makes the next prediction on that road better.
+ * The report is stored, then **verified** — corroboration from other reporters,
+ * consistency with rainfall, consistency with observed traffic, historical
+ * pattern, model agreement and reporter standing. The verification comes back in
+ * the response so the person who submitted it can see exactly how much weight
+ * their report carries and why.
  *
- * Reports are deliberately not trusted individually. Corroboration and
- * contradiction from nearby reports weight them, and the signal decays with a
- * half-life matched to how fast the underlying thing changes.
+ * A report below moderate confidence is recorded and shown but does not move a
+ * prediction on its own. That is the anti-spam property: volume from one device
+ * cannot manufacture confidence, because corroboration counts distinct
+ * reporters.
  */
 export async function POST(request: Request) {
   let body: ReportBody;
@@ -83,9 +96,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const meta = REPORT_META[body.type];
+  const severity: Severity =
+    body.severity && SEVERITIES.includes(body.severity)
+      ? body.severity
+      : "moderate";
+
   const depthCm =
-    typeof body.depthCm === "number" && Number.isFinite(body.depthCm)
+    meta.needsDepth && typeof body.depthCm === "number" && Number.isFinite(body.depthCm)
       ? Math.max(0, Math.min(400, body.depthCm))
+      : null;
+
+  const lanesBlocked =
+    meta.needsLanes &&
+    typeof body.lanesBlocked === "number" &&
+    Number.isFinite(body.lanesBlocked)
+      ? Math.max(0, Math.min(segment.lanes, Math.round(body.lanesBlocked)))
       : null;
 
   const store = getStore();
@@ -98,26 +124,47 @@ export async function POST(request: Request) {
       typeof body.lat === "number" && typeof body.lng === "number"
         ? { lat: body.lat, lng: body.lng }
         : segment.midpoint,
+    severity,
     depthCm,
-    note: typeof body.note === "string" ? body.note.slice(0, 400) : null,
+    lanesBlocked,
+    description:
+      typeof body.description === "string" ? body.description.slice(0, 400) : null,
+    photoUrl: typeof body.photoUrl === "string" ? body.photoUrl.slice(0, 600) : null,
     reporterId: body.reporterId?.slice(0, 64) ?? "anonymous",
   });
 
-  // Record the outcome against the live prediction for this road, so the
-  // calibration term has something to learn from.
-  try {
-    const scenario = resolveScenario(body.scenario);
-    const result = await runFloodEngine(cityId, scenario);
-    const state = result.graph.getState(segment.id);
+  /* ── Verify ────────────────────────────────────────────────────────── */
 
-    if (state) {
+  const scenario = resolveScenario(body.scenario);
+  let verification = null;
+
+  try {
+    const result = await runFloodEngine(cityId, scenario);
+    const neighbours = await store.listReports({
+      cityId,
+      withinMin: meta.halfLifeMin * 3,
+      limit: 300,
+    });
+
+    verification = verifyReport({
+      report,
+      neighbours,
+      segment,
+      state: result.graph.getState(segment.id),
+      weather: sampleWeather(result.bundle, report.at),
+      now: new Date(),
+    });
+
+    // Record the outcome only for reports that actually claim something about
+    // water — the rest are not evidence about the flood model's accuracy.
+    const state = result.graph.getState(segment.id);
+    if (state && (meta.waterRelated || body.type === "road_clear")) {
       await store.recordOutcome({
         cityId,
         segmentId: segment.id,
         predictedProbability: state.floodProbability,
         predictedDepthCm: state.depthCm,
-        observedFlooded:
-          body.type === "flooded_road" || body.type === "vehicle_stalled",
+        observedFlooded: meta.waterRelated,
         observedDepthCm: depthCm,
         modelId: state.modelId,
         scenario,
@@ -125,14 +172,12 @@ export async function POST(request: Request) {
       });
     }
   } catch (error) {
-    // A failure to record the outcome must not lose the report itself.
-    console.error("[api/reports] outcome recording failed", error);
+    // Verification failing must not lose the report itself.
+    console.error("[api/reports] verification failed", error);
   }
 
-  // The next prediction must reflect this report — both the report signal and
-  // the learned correction it just contributed to.
   invalidateCalibration(cityId);
   invalidateEngineCache(cityId);
 
-  return NextResponse.json({ report }, { status: 201 });
+  return NextResponse.json({ report, verification }, { status: 201 });
 }

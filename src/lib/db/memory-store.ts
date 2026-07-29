@@ -102,6 +102,16 @@ export class MemoryStore implements FloodPilotStore {
   }
 }
 
+/**
+ * Does this report assert that there is water on the road?
+ *
+ * Used only to decide whether two nearby reports corroborate or contradict each
+ * other, so it deliberately groups every water-positive type together.
+ */
 export function isFloodPositive(type: string): boolean {
-  return type === "flooded_road" || type === "vehicle_stalled";
+  return (
+    type === "waterlogging" ||
+    type === "vehicle_stalled" ||
+    type === "overflowing_drain"
+  );
 }

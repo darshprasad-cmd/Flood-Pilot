@@ -1,4 +1,15 @@
 import { buildTimeline, type PredictionTimeline } from "@/lib/engine/timeline";
+import { clusterReports } from "@/lib/community/clustering";
+import { getStore } from "@/lib/db";
+import { loadCalibration } from "@/lib/engine/calibration";
+import { tzOffsetMinutes } from "@/lib/core/time";
+import { forecastCongestion } from "@/lib/intelligence/congestion";
+import {
+  buildRoadIntelligence,
+  type RoadIntelligence,
+} from "@/lib/intelligence/road-attributes";
+import { estimateIntersectionDelays } from "@/lib/intelligence/signal-delay";
+import { sampleWeather } from "@/lib/signals";
 import { planRoutes } from "@/lib/routing/safe-route";
 import type { RouteComparison } from "@/lib/routing/types";
 import type { ScenarioId } from "@/lib/signals/scenarios";
@@ -92,6 +103,12 @@ export async function runJourneyBrief(
   });
   const result = record(predictionEnvelope, "Prediction Agent");
 
+  /* 1b. Community intelligence ------------------------------------------
+     Built before routing because routing consumes it: reported lane
+     blockages, inferred accidents, construction and signal delay all change
+     which road is actually the right one. */
+  const intelligence = await buildIntelligence(request, result, now);
+
   /* 2. Routes ----------------------------------------------------------- */
   const routeRequest = {
     cityId: request.cityId,
@@ -105,6 +122,7 @@ export async function runJourneyBrief(
     graph: result.graph,
     predictions: result.predictions,
     request: routeRequest,
+    intelligence,
   });
   const comparison = record(routeEnvelope, "Route Agent");
 
@@ -130,10 +148,12 @@ export async function runJourneyBrief(
     now,
     horizonMin: 12 * 60,
     evaluateDeparture: (departInMin) => {
-      const plan = planRoutes(result.graph, result.predictions, {
-        ...routeRequest,
-        departInMin,
-      });
+      const plan = planRoutes(
+        result.graph,
+        result.predictions,
+        { ...routeRequest, departInMin },
+        intelligence,
+      );
       if (!plan) return null;
       return {
         score: plan.safest.safeRouteScore,
@@ -188,6 +208,68 @@ export async function runJourneyBrief(
     computedAt: now.toISOString(),
     scenario: request.scenario,
   };
+}
+
+/**
+ * Assemble the community-derived road attributes for one tick.
+ *
+ * Failure here must not fail the journey — a routing answer without community
+ * intelligence is degraded, but a routing answer that never arrives is useless.
+ */
+async function buildIntelligence(
+  request: JourneyRequest,
+  result: Awaited<ReturnType<typeof predictionAgent.run>>["data"],
+  now: Date,
+): Promise<Map<string, RoadIntelligence> | undefined> {
+  try {
+    const { graph, bundle } = result;
+    const reports = await getStore().listReports({
+      cityId: request.cityId,
+      withinMin: 30 * 24 * 60,
+      limit: 800,
+    });
+
+    const weatherAt = (at: { lat: number; lng: number }) =>
+      sampleWeather(bundle, at);
+
+    const clusters = clusterReports(reports, graph, weatherAt, now);
+
+    const offsetMin = tzOffsetMinutes(graph.city.timezone, now);
+    const local = new Date(now.getTime() + offsetMin * 60_000);
+    const localHour = local.getUTCHours() + local.getUTCMinutes() / 60;
+
+    const delays = estimateIntersectionDelays(graph, localHour, (nodeId) =>
+      graph
+        .neighbours(nodeId)
+        .reduce(
+          (worst, edge) =>
+            Math.max(worst, graph.getState(edge.segmentId)?.trafficDensity ?? 0),
+          0,
+        ),
+    );
+
+    const congestion = forecastCongestion({
+      graph,
+      weatherAt: (segment) => weatherAt(segment.midpoint),
+      clusters,
+      localHour,
+      timezone: graph.city.timezone,
+      now,
+    });
+
+    return buildRoadIntelligence({
+      graph,
+      clusters,
+      reports,
+      delays: new Map(delays.map((d) => [d.nodeId, d])),
+      congestion: new Map(congestion.map((c) => [c.segmentId, c])),
+      calibration: await loadCalibration(request.cityId),
+      now,
+    });
+  } catch (error) {
+    console.error("[orchestrator] community intelligence unavailable", error);
+    return undefined;
+  }
 }
 
 export { AGENT_REGISTRY } from "./base";
