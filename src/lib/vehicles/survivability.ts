@@ -150,6 +150,11 @@ export function assessSurvivability(
       text: `${depthLabel(depthCm)} is close to this vehicle's limit. It would probably get through slowly and in one gear, with no margin if the water is deeper than modelled.`,
       impact: "increases-risk",
     });
+  } else if (depthCm < 1) {
+    reasons.push({
+      text: "There is no standing water on this route to worry about.",
+      impact: "reduces-risk",
+    });
   } else {
     reasons.push({
       text: `${depthLabel(depthCm)} is comfortably within what this vehicle handles.`,
