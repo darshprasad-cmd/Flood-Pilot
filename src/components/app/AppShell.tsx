@@ -36,6 +36,12 @@ import {
 } from "./route-vehicle";
 import { SegmentSheet } from "./SegmentSheet";
 import { JourneyForm, type JourneyFormState } from "./JourneyForm";
+import { ClusterList, type ClusterDto } from "./ReportSheet";
+import {
+  LayersControl,
+  defaultLayerState,
+  type LayerState,
+} from "@/components/map/LayersControl";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useT } from "@/lib/i18n";
 import type { MapDrain, MapMarker, MapRoute, MapSegment } from "@/components/map/RiskMap";
@@ -149,7 +155,28 @@ interface BriefPayload {
   sources: SourceUsageDto[];
 }
 
-type Tab = "journey" | "city";
+type Tab = "journey" | "city" | "community";
+
+interface CommunityPayload {
+  clusters: ClusterDto[];
+  reportCount: number;
+  congestionForecast: {
+    segmentId: string;
+    name: string;
+    headline: string;
+    onsetInMin: number | null;
+    peakDensity: number;
+    confidence: number;
+    drivers: { key: string; label: string; detail: string }[];
+  }[];
+  signalDelays: {
+    nodeId: string;
+    name: string;
+    estimatedDelaySec: number;
+    confidence: number;
+    basis: string[];
+  }[];
+}
 
 /**
  * Which surface a phone is showing.
@@ -185,7 +212,8 @@ export default function AppShell() {
   const [form, setForm] = useState<JourneyFormState>(DEFAULT_FORM);
   const [tab, setTab] = useState<Tab>("journey");
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
-  const [showDrains, setShowDrains] = useState(true);
+  const [community, setCommunity] = useState<CommunityPayload | null>(null);
+  const [layers, setLayers] = useState<LayerState>(defaultLayerState);
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -217,6 +245,20 @@ export default function AppShell() {
   useEffect(() => {
     void loadPrediction();
   }, [loadPrediction]);
+
+  /* ── Community intelligence ──────────────────────────────────────────── */
+  const loadCommunity = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/community?scenario=${scenario}`);
+      if (res.ok) setCommunity((await res.json()) as CommunityPayload);
+    } catch {
+      // Community intelligence is additive; the app works without it.
+    }
+  }, [scenario]);
+
+  useEffect(() => {
+    void loadCommunity();
+  }, [loadCommunity]);
 
   /* ── Journey brief ───────────────────────────────────────────────────── */
   const planJourney = useCallback(async () => {
@@ -315,11 +357,25 @@ export default function AppShell() {
     if (origin) out.push({ id: "o", at: origin.at, label: origin.name, kind: "origin" });
     if (destination)
       out.push({ id: "d", at: destination.at, label: destination.name, kind: "destination" });
+
     for (const gauge of cityData.gauges) {
       out.push({ id: gauge.id, at: gauge.at, label: `${gauge.name} · ${gauge.river}`, kind: "gauge" });
     }
+
+    // Detected events, not raw pins — one marker per cluster.
+    for (const cluster of community?.clusters ?? []) {
+      const layer = LAYER_FOR_EVENT[cluster.inferred.kind] ?? "alerts";
+      if (!layers[layer as keyof LayerState]) continue;
+      out.push({
+        id: cluster.id,
+        at: cluster.at,
+        label: `${cluster.inferred.label} — ${cluster.reportCount} reports from ${cluster.reporterCount} people`,
+        kind: "hotspot",
+      });
+    }
+
     return out;
-  }, [cityData, form.origin, form.destination]);
+  }, [cityData, form.origin, form.destination, community, layers]);
 
   const selectedSegment = predict?.segments.find((s) => s.id === selectedSegmentId);
 
@@ -411,7 +467,7 @@ export default function AppShell() {
               routes={routes}
               markers={markers}
               selectedSegmentId={selectedSegmentId}
-              showDrains={showDrains}
+              showDrains={layers.drains}
               onSelectSegment={(id) => {
                 setSelectedSegmentId(id);
               }}
@@ -438,16 +494,13 @@ export default function AppShell() {
               <span>{t.risk.safe}</span>
               <span>{t.risk.critical}</span>
             </div>
-            <label className="mt-2.5 flex min-h-11 cursor-pointer items-center gap-2 text-[11px] text-fg-muted">
-              <input
-                type="checkbox"
-                checked={showDrains}
-                onChange={(e) => setShowDrains(e.target.checked)}
-                className="h-4 w-4 accent-signal-500"
-              />
-              {t.stats.trunkDrains}
-            </label>
           </div>
+
+          <LayersControl
+            state={layers}
+            onChange={setLayers}
+            className="absolute bottom-3 end-3 z-20 lg:bottom-4 lg:end-4"
+          />
 
           {/* City status strip */}
           {predict ? (
@@ -482,18 +535,22 @@ export default function AppShell() {
           }`}
         >
           <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-ink-950/95 px-3 py-2 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none">
-            {(["journey", "city"] as Tab[]).map((id) => (
+            {(["journey", "city", "community"] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
                   tab === id
                     ? "bg-ink-800 text-fg"
                     : "text-fg-faint hover:text-fg-muted"
                 }`}
               >
-                {id === "journey" ? t.app.thisJourney : t.app.cityConditions}
+                {id === "journey"
+                  ? t.app.thisJourney
+                  : id === "city"
+                    ? t.app.cityConditions
+                    : "Community"}
               </button>
             ))}
           </div>
@@ -552,8 +609,14 @@ export default function AppShell() {
                   <Skeleton className="h-52" />
                 </div>
               )
-            ) : predict ? (
-              <CityConditions predict={predict} onSelect={setSelectedSegmentId} />
+            ) : tab === "city" ? (
+              predict ? (
+                <CityConditions predict={predict} onSelect={setSelectedSegmentId} />
+              ) : (
+                <Skeleton className="h-64" />
+              )
+            ) : community ? (
+              <CommunityPanel community={community} />
             ) : (
               <Skeleton className="h-64" />
             )}
@@ -769,6 +832,100 @@ function CityConditions({
 }
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Community panel.
+ *
+ * Leads with detected events rather than a report feed, then the two forward
+ * looking pieces: where congestion is about to appear, and which junctions are
+ * costing the most time.
+ */
+function CommunityPanel({ community }: { community: CommunityPayload }) {
+  return (
+    <>
+      <ClusterList clusters={community.clusters} />
+
+      {community.congestionForecast.length > 0 ? (
+        <Card>
+          <CardHeader
+            eyebrow="Next two hours"
+            title="Predicted congestion"
+            right={<Badge tone="warn">{community.congestionForecast.length}</Badge>}
+          />
+          <ul className="divide-y divide-line">
+            {community.congestionForecast.slice(0, 8).map((f) => (
+              <li key={f.segmentId} className="px-4 py-2.5">
+                <p className="text-[12.5px] leading-snug text-fg">{f.headline}</p>
+                {f.drivers.length > 0 ? (
+                  <p className="mt-1 text-[11px] leading-snug text-fg-faint">
+                    {f.drivers[0].detail}
+                  </p>
+                ) : null}
+                <p className="numeric mt-1 text-[10.5px] text-fg-faint">
+                  Confidence {Math.round(f.confidence * 100)}%
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {community.signalDelays.length > 0 ? (
+        <Card>
+          <CardHeader
+            eyebrow="AI-estimated, not published timing"
+            title="Intersection delay"
+          />
+          <ul className="divide-y divide-line">
+            {community.signalDelays.slice(0, 8).map((d) => (
+              <li
+                key={d.nodeId}
+                className="flex items-baseline justify-between gap-3 px-4 py-2"
+              >
+                <span className="truncate text-[12px] text-fg-muted">{d.name}</span>
+                <span className="numeric shrink-0 text-[12px] font-semibold text-fg">
+                  {d.estimatedDelaySec}s
+                  <span className="ms-1.5 text-[10px] font-normal text-fg-faint">
+                    ±{Math.round((1 - d.confidence) * 100)}%
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="border-t border-line px-4 py-2.5 text-[10.5px] leading-snug text-fg-faint">
+            Delhi&apos;s signals are adaptive and no timing schedule is published.
+            These are estimates of how long you will actually wait, derived from
+            junction size, road class, time of day and congestion — not cycle
+            times.
+          </p>
+        </Card>
+      ) : null}
+
+      <Card>
+        <div className="px-4 py-3">
+          <p className="text-[11.5px] leading-snug text-fg-faint">
+            {community.reportCount} community report
+            {community.reportCount === 1 ? "" : "s"} in the last 30 days. Select
+            any road on the map to report conditions there.
+          </p>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+/** Which map layer a detected event belongs to. */
+const LAYER_FOR_EVENT: Record<string, string> = {
+  major_flood_event: "waterlogging",
+  drain_failure: "waterlogging",
+  likely_accident: "accidents",
+  construction_bottleneck: "construction",
+  infrastructure_defect: "construction",
+  road_blocked: "closures",
+  emergency_response: "alerts",
+  localised_congestion: "congestion",
+  unclassified: "alerts",
+};
 
 const RISK_COLORS: Record<string, string> = {
   safe: "#2fbf6f",

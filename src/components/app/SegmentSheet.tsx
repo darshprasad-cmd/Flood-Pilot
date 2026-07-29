@@ -19,12 +19,14 @@ import {
   type ExplanationDto,
   type SourceUsageDto,
 } from "./panels";
+import { ReportSheet } from "./ReportSheet";
 
 interface SegmentDetail {
   segment: {
     id: string;
     name: string;
     corridor: string;
+    lanes: number;
     elevationM: number;
     slopePct: number;
     isUnderpass: boolean;
@@ -114,10 +116,6 @@ export function SegmentSheet({
   onReported: () => void;
 }) {
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
-  const [reportType, setReportType] = useState<string | null>(null);
-  const [depth, setDepth] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
   const load = useCallback(async () => {
     setDetail(null);
@@ -131,9 +129,6 @@ export function SegmentSheet({
 
   useEffect(() => {
     void load();
-    setSubmitted(false);
-    setReportType(null);
-    setDepth("");
   }, [load]);
 
   useEffect(() => {
@@ -143,34 +138,6 @@ export function SegmentSheet({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  const submitReport = async () => {
-    if (!reportType) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          segmentId,
-          type: reportType,
-          depthCm: depth ? Number(depth) : null,
-          scenario,
-        }),
-      });
-      if (res.ok) {
-        setSubmitted(true);
-        setReportType(null);
-        setDepth("");
-        onReported();
-        await load();
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const needsDepth = REPORT_OPTIONS.find((o) => o.type === reportType)?.needsDepth;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -366,90 +333,46 @@ export function SegmentSheet({
                 </Card>
               ) : null}
 
-              {/* Reports */}
-              <Card>
-                <CardHeader
-                  eyebrow="Live learning"
-                  title="Report conditions here"
-                  right={
-                    detail.reports.length > 0 ? (
-                      <Badge tone="signal">{detail.reports.length}</Badge>
-                    ) : null
-                  }
-                />
-                <div className="px-4 py-3">
-                  {submitted ? (
-                    <p className="text-[12px] text-risk-safe">
-                      Thank you — the prediction for this road has been updated and
-                      your report is recorded against what was forecast.
-                    </p>
-                  ) : null}
+              {/* Reporting and live learning */}
+              <ReportSheet
+                segmentId={segmentId}
+                segmentLanes={detail.segment.lanes ?? 4}
+                scenario={scenario}
+                onReported={() => {
+                  onReported();
+                  void load();
+                }}
+              />
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {REPORT_OPTIONS.map((option) => (
-                      <button
-                        key={option.type}
-                        type="button"
-                        onClick={() =>
-                          setReportType(reportType === option.type ? null : option.type)
-                        }
-                        className={`rounded-lg border px-2.5 py-1.5 text-[11.5px] font-medium transition-colors ${
-                          reportType === option.type
-                            ? "border-signal-500 bg-signal-500/15 text-signal-300"
-                            : "border-line bg-ink-850 text-fg-muted hover:text-fg"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {reportType ? (
-                    <div className="mt-3 space-y-2">
-                      {needsDepth ? (
-                        <input
-                          type="number"
-                          min={0}
-                          max={400}
-                          value={depth}
-                          onChange={(e) => setDepth(e.target.value)}
-                          placeholder="Depth in cm (optional)"
-                          className="numeric w-full rounded-lg border border-line bg-ink-850 px-2.5 py-2 text-[12.5px] outline-none focus:border-signal-500"
-                        />
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={submitReport}
-                        disabled={submitting}
-                        className="w-full rounded-lg bg-signal-500 px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-signal-400 disabled:opacity-50"
-                      >
-                        {submitting ? "Sending…" : "Submit report"}
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {detail.reports.length > 0 ? (
-                    <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
-                      {detail.reports.slice(0, 5).map((report) => (
-                        <li key={report.id} className="text-[11.5px] text-fg-muted">
-                          <span className="capitalize">
-                            {report.type.replace("_", " ")}
+              {detail.reports.length > 0 ? (
+                <Card>
+                  <CardHeader
+                    eyebrow="From this road"
+                    title="Recent reports"
+                    right={<Badge tone="signal">{detail.reports.length}</Badge>}
+                  />
+                  <ul className="divide-y divide-line">
+                    {detail.reports.slice(0, 8).map((report) => (
+                      <li key={report.id} className="px-4 py-2">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-[12px] capitalize text-fg-muted">
+                            {report.type.replace(/_/g, " ")}
+                            {report.depthCm !== null ? ` · ${report.depthCm} cm` : ""}
                           </span>
-                          {report.depthCm !== null ? ` · ${report.depthCm} cm` : ""}
-                          <span className="ml-1.5 text-fg-faint">
+                          <span className="shrink-0 text-[10.5px] text-fg-faint">
                             {timeAgo(report.createdAt)}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 border-t border-line pt-3 text-[11px] text-fg-faint">
-                      No reports from this road yet. Reports change the prediction
-                      immediately and are decayed over time.
-                    </p>
-                  )}
-                </div>
-              </Card>
+                        </div>
+                        {report.note ? (
+                          <p className="mt-0.5 text-[11px] text-fg-faint">
+                            {report.note}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
 
               <SourcePanel sources={detail.sources} />
             </div>

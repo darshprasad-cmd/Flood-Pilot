@@ -68,6 +68,14 @@ the problem: Delhi has very little gravity available to move water.
   compile.
 - **Live learning.** Citizen reports re-weight predictions immediately and are
   recorded against what was forecast, driving a per-segment correction.
+- **Community intelligence.** Sixteen report types with GPS, severity and lane
+  blockage; every report verified against corroboration, rainfall, traffic,
+  history and the model before it is allowed to move anything; reports clustered
+  into *events* with the cause inferred — including causes nobody reported.
+- **Seven languages.** Hindi, English, Punjabi, Urdu, Bengali, Bhojpuri and
+  Maithili. See [`docs/I18N.md`](docs/I18N.md).
+- **Works on a phone.** iPhone and Android layouts, safe-area handling, 16px
+  controls so iOS does not zoom, and a PWA manifest.
 
 ---
 

@@ -76,6 +76,7 @@ export function serializeSegment(
     midpoint: segment.midpoint,
     lengthM: Math.round(segment.lengthM),
     roadClass: segment.roadClass,
+    // Needed client-side so the report form can bound "lanes blocked".
     lanes: segment.lanes,
     isUnderpass: segment.isUnderpass,
     elevationM: Math.round(segment.elevationM * 10) / 10,
