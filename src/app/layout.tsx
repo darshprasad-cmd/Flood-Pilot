@@ -1,20 +1,23 @@
 import type { Metadata, Viewport } from "next";
 import { I18nProvider } from "@/lib/i18n";
+import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://floodpilot.netlify.app"),
+  metadataBase: new URL("https://dishaai.netlify.app"),
   title: {
-    default: "FloodPilot — AI Urban Flood Intelligence for Delhi",
-    template: "%s · FloodPilot",
+    default: `${BRAND.name} — ${BRAND.tagline}`,
+    template: `%s · ${BRAND.name}`,
   },
   description:
-    "FloodPilot predicts where Delhi floods, how deep, and when — then tells you what to do about it. Explainable, confidence-scored urban flood intelligence for citizens and city governments.",
-  applicationName: "FloodPilot",
+    "An intelligent map that understands Delhi, understands you, and calmly guides you to the safest decision. Risk-based routing, vehicle survivability and explainable AI on live government and open data.",
+  applicationName: BRAND.name,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "FloodPilot",
+    // iOS renders this under the home-screen icon in the system font, which on
+    // older versions has no Devanagari. The Latin name is legible everywhere.
+    title: BRAND.latin,
     statusBarStyle: "black-translucent",
   },
   formatDetection: {
@@ -22,17 +25,19 @@ export const metadata: Metadata = {
     telephone: false,
   },
   keywords: [
+    "दिशा",
+    "DishaAI",
     "Delhi flood",
     "waterlogging",
     "Yamuna",
     "flood prediction",
     "urban resilience",
-    "flood routing",
+    "safe route",
   ],
   openGraph: {
-    title: "FloodPilot — AI Urban Flood Intelligence for Delhi",
+    title: `${BRAND.name} — ${BRAND.tagline}`,
     description:
-      "An operating system for urban flood resilience. Risk-based routing, vehicle survivability, and explainable decisions.",
+      "AI urban intelligence for Delhi. Not the fastest route — the one you survive.",
     type: "website",
   },
 };

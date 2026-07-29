@@ -170,7 +170,7 @@ export class RouteAgent implements Agent<RouteAgentInput, RouteComparison | null
               label: "Road network coverage",
               score: 0.72,
               weight: 0.5,
-              note: "Routing runs on FloodPilot's own risk graph of major corridors, not a full street network — very local detours are not modelled.",
+              note: "Routing runs on दिशाAI's own risk graph of major corridors, not a full street network — very local detours are not modelled.",
             },
             {
               key: "timing",

@@ -454,7 +454,7 @@ function buildOptions(input: DecisionInput): DecisionOption[] {
         option.score = Math.min(option.score, 12);
         option.feasible = false;
         option.infeasibleReason =
-          "This is a medical journey — FloodPilot will not recommend delaying or cancelling it.";
+          "This is a medical journey — दिशाAI will not recommend delaying or cancelling it.";
       }
       if (option.action === "use_cab" || option.action === "use_metro") {
         option.score += 15;

@@ -15,6 +15,7 @@ import {
   Skeleton,
 } from "@/components/ui/primitives";
 import { SourcePanel, WhyPanel, type ExplanationDto, type SourceUsageDto } from "@/components/app/panels";
+import { Lockup } from "@/components/brand/Logo";
 import type { MapDrain, MapMarker, MapSegment } from "@/components/map/RiskMap";
 
 const RiskMap = dynamic(() => import("@/components/map/RiskMap"), {
@@ -186,8 +187,8 @@ export default function GovDashboard() {
   return (
     <div className="flex h-dvh flex-col bg-ink-950">
       <header className="glass z-30 flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          FloodPilot
+        <Link href="/">
+          <Lockup size={14} />
         </Link>
         <Badge tone="danger">Operations</Badge>
         <span className="hidden text-[11px] text-fg-faint sm:inline">

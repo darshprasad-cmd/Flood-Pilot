@@ -43,6 +43,7 @@ import {
   type LayerState,
 } from "@/components/map/LayersControl";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { Lockup } from "@/components/brand/Logo";
 import { useT } from "@/lib/i18n";
 import type { MapDrain, MapMarker, MapRoute, MapSegment } from "@/components/map/RiskMap";
 
@@ -387,9 +388,8 @@ export default function AppShell() {
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
       {/* Top bar */}
       <header className="glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo />
-          <span className="text-sm font-semibold tracking-tight">FloodPilot</span>
+        <Link href="/">
+          <Lockup size={14} />
         </Link>
 
         <span className="hidden text-[11px] text-fg-faint md:inline">
@@ -952,21 +952,3 @@ function vehicleName(
   return `${entry.manufacturer} ${entry.model} · ${year}`;
 }
 
-function Logo() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 2.5c3.6 4.2 6 7.6 6 10.6a6 6 0 1 1-12 0c0-3 2.4-6.4 6-10.6Z"
-        stroke="var(--color-signal-400)"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.4 14.2c1 .9 2 .9 3 0s2-.9 3 0"
-        stroke="var(--color-aqua-400)"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}

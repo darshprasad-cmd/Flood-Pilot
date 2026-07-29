@@ -50,7 +50,7 @@ export const en = {
     titleLine1: "Delhi floods in four different ways.",
     titleLine2: "A weather app tells you about one of them.",
     lede:
-      "FloodPilot predicts where the city waterlogs, how deep, and when — then tells one specific person, in one specific vehicle, what to do about it.",
+      "दिशाAI predicts where the city waterlogs, how deep, and when — then tells one specific person, in one specific vehicle, what to do about it.",
     secondaryCta: "How it works",
     noSignup: "No sign-up. Runs on live open data.",
   },
@@ -170,7 +170,7 @@ export const en = {
     recommended: "Recommended safe route",
     leastDangerous: "Least dangerous route",
     whatMapsGives: "What a maps app gives you",
-    whatWeRecommend: "What FloodPilot recommends",
+    whatWeRecommend: "What दिशाAI recommends",
     bestAvailable: "Best available — still not safe",
     extraTime: "Extra time",
     riskReduction: "Risk reduction",

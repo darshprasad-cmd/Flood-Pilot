@@ -209,7 +209,7 @@ async function runPass(query, label) {
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "User-Agent":
-              "FloodPilot/0.2 (urban flood intelligence; drainage extraction)",
+              "DishaAI/0.3 (urban flood intelligence; drainage extraction)",
             Accept: "application/json",
           },
         });

@@ -1,8 +1,8 @@
 {
-  "name": "floodpilot",
-  "version": "0.2.0",
+  "name": "dishaai",
+  "version": "0.3.0",
   "private": true,
-  "description": "AI Urban Flood Intelligence Platform",
+  "description": "दिशाAI — AI urban intelligence for Delhi NCR",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

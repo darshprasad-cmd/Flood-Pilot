@@ -162,8 +162,8 @@ const PROVIDER_NAMES: Record<string, string> = {
   "open-meteo": "Open-Meteo",
   "open-meteo-flood": "Open-Meteo global flood model",
   "open-meteo-elevation": "Copernicus DEM via Open-Meteo",
-  "internal-model": "FloodPilot internal model",
-  seed: "FloodPilot seeded dataset",
+  "internal-model": "दिशाAI internal model",
+  seed: "दिशाAI seeded dataset",
 };
 
 export function providerName(id: string): string {

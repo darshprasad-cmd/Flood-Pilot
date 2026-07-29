@@ -1,7 +1,7 @@
 {
-  "name": "FloodPilot — Delhi Flood Intelligence",
-  "short_name": "FloodPilot",
-  "description": "Predicts where Delhi floods, how deep and when — then tells you what to do about it.",
+  "name": "दिशाAI — Know the Safest Way Forward",
+  "short_name": "दिशाAI",
+  "description": "An intelligent map that understands Delhi, understands you, and calmly guides you to the safest decision.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
@@ -39,9 +39,14 @@
   ],
   "shortcuts": [
     {
-      "name": "Plan a journey",
+      "name": "Plan a safe journey",
       "short_name": "Journey",
-      "url": "/app"
+      "url": "/app?view=journey"
+    },
+    {
+      "name": "Check my area",
+      "short_name": "My area",
+      "url": "/app?view=today"
     }
   ]
 }

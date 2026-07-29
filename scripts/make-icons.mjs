@@ -7,8 +7,10 @@
  * for "add to home screen" to look right on either platform.
  *
  * Written with only Node's built-in zlib rather than pulling in a rasteriser:
- * the artwork is a rounded square plus two strokes, which is cheap to draw
- * directly into a pixel buffer and keeps the dependency list honest.
+ * the artwork is a rounded square, a ring and four triangles, which is cheap to
+ * draw directly into a pixel buffer and keeps the dependency list honest.
+ *
+ * Must be kept in step with public/icon.svg — same 64-unit grid, same compass.
  *
  *   node scripts/make-icons.mjs
  */
@@ -18,8 +20,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const BG = [5, 7, 11];
-const BLUE = [74, 168, 255];
-const AQUA = [53, 214, 214];
+const BEZEL = [61, 76, 102];
+const TICK = [76, 92, 120];
+const NEEDLE_N = [124, 196, 255];
+const NEEDLE_NW = [63, 143, 221];
+const NEEDLE_S = [53, 214, 214];
+const NEEDLE_SE = [29, 111, 208];
+
+/** The needle sits off true north, so the whole compass is drawn rotated. */
+const NEEDLE_TILT_DEG = 24;
 
 /** Signed distance from a point to a line segment, in pixels. */
 function distToSegment(px, py, ax, ay, bx, by) {
@@ -28,23 +37,6 @@ function distToSegment(px, py, ax, ay, bx, by) {
   const lenSq = dx * dx + dy * dy;
   const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-}
-
-/** Quadratic bezier sampled into segments, then distance to the polyline. */
-function distToQuad(px, py, p0, p1, p2, steps = 24) {
-  let best = Infinity;
-  let prev = p0;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const u = 1 - t;
-    const cur = [
-      u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
-      u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1],
-    ];
-    best = Math.min(best, distToSegment(px, py, prev[0], prev[1], cur[0], cur[1]));
-    prev = cur;
-  }
-  return best;
 }
 
 function blend(dst, i, colour, alpha) {
@@ -58,6 +50,61 @@ function coverage(d, hw) {
   return Math.max(0, Math.min(1, hw + 0.5 - d));
 }
 
+/**
+ * Signed distance to a convex polygon, negative inside.
+ *
+ * For a convex shape the maximum of the per-edge signed distances is the exact
+ * distance everywhere except just outside a vertex, where it under-estimates
+ * slightly. At icon sizes that error lands inside a single pixel of a needle
+ * tip, which is not a shape anyone will ever measure.
+ */
+function signedDistConvex(px, py, points) {
+  let best = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const [ax, ay] = points[i];
+    const [bx, by] = points[(i + 1) % points.length];
+    const ex = bx - ax;
+    const ey = by - ay;
+    const len = Math.hypot(ex, ey) || 1;
+    // Outward normal for a clockwise winding in screen space (y down).
+    best = Math.max(best, ((px - ax) * ey - (py - ay) * ex) / len);
+  }
+  return best;
+}
+
+/**
+ * Force a clockwise winding in screen space (y down).
+ *
+ * `signedDistConvex` reads the outward normal off the edge direction, so a
+ * polygon wound the other way comes back inside-out — the needle would fill
+ * the entire icon except itself. Normalising here means the polygons below can
+ * be transcribed straight from the SVG path order without thinking about it.
+ */
+function clockwise(points) {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [ax, ay] = points[i];
+    const [bx, by] = points[(i + 1) % points.length];
+    area += ax * by - bx * ay;
+  }
+  return area > 0 ? points : [...points].reverse();
+}
+
+/* The four needle quadrants, on the same 64-unit grid as public/icon.svg. */
+const NEEDLE = [
+  { points: clockwise([[32, 9.6], [40.4, 32], [32, 28.2]]), colour: NEEDLE_N, alpha: 1 },
+  { points: clockwise([[32, 9.6], [23.6, 32], [32, 28.2]]), colour: NEEDLE_NW, alpha: 1 },
+  { points: clockwise([[32, 54.4], [23.6, 32], [32, 35.8]]), colour: NEEDLE_S, alpha: 0.8 },
+  { points: clockwise([[32, 54.4], [40.4, 32], [32, 35.8]]), colour: NEEDLE_SE, alpha: 0.7 },
+];
+
+const TICKS = [
+  [[32, 4], [32, 8]],
+  [[32, 56], [32, 60]],
+  [[4, 32], [8, 32]],
+  [[56, 32], [60, 32]],
+];
+
 function render(size, { maskable }) {
   const px = new Uint8Array(size * size * 4);
   const s = size / 64; // artwork is authored on a 64-unit grid
@@ -70,12 +117,9 @@ function render(size, { maskable }) {
 
   const radius = maskable ? size : 14 * s;
 
-  const drop = [
-    [32, 10],
-    [48, 38.3],
-    [32, 54.3],
-    [16, 38.3],
-  ];
+  const tilt = (NEEDLE_TILT_DEG * Math.PI) / 180;
+  const cosT = Math.cos(tilt);
+  const sinT = Math.sin(tilt);
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -101,23 +145,34 @@ function render(size, { maskable }) {
       const ux = (cx - off) / a;
       const uy = (cy - off) / a;
 
-      // Droplet outline: two curves down each side from the apex.
-      const dDrop = Math.min(
-        distToQuad(ux, uy, drop[0], [46, 22], drop[1]),
-        distToQuad(ux, uy, drop[1], [48, 50], drop[2]),
-        distToQuad(ux, uy, drop[2], [16, 50], drop[3]),
-        distToQuad(ux, uy, drop[3], [18, 22], drop[0]),
-      );
-      const cDrop = coverage(dDrop * a, 1.7 * a);
-      if (cDrop > 0) blend(px, i, BLUE, cDrop * bgAlpha);
+      // Bezel ring.
+      const dCentre = Math.hypot(ux - 32, uy - 32);
+      const cRing = coverage(Math.abs(dCentre - 24) * a, 1.3 * a);
+      if (cRing > 0) blend(px, i, BEZEL, cRing * bgAlpha);
 
-      // Wave through the lower third.
-      const dWave = Math.min(
-        distToQuad(ux, uy, [22.4, 41.5], [26.4, 45], [30.4, 41.5]),
-        distToQuad(ux, uy, [30.4, 41.5], [34.4, 38], [38.4, 41.5]),
-      );
-      const cWave = coverage(dWave * a, 1.7 * a);
-      if (cWave > 0) blend(px, i, AQUA, cWave * bgAlpha);
+      // Cardinal ticks.
+      for (const [p0, p1] of TICKS) {
+        const d = distToSegment(ux, uy, p0[0], p0[1], p1[0], p1[1]);
+        const c = coverage(d * a, 1.3 * a);
+        if (c > 0) blend(px, i, TICK, c * bgAlpha);
+      }
+
+      // The needle is the only rotated element, so rotate the sample point
+      // into its frame rather than rotating four polygons per pixel.
+      const rx = 32 + (ux - 32) * cosT + (uy - 32) * sinT;
+      const ry = 32 - (ux - 32) * sinT + (uy - 32) * cosT;
+
+      for (const part of NEEDLE) {
+        const d = signedDistConvex(rx, ry, part.points) * a;
+        const c = coverage(d, 0) * part.alpha;
+        if (c > 0) blend(px, i, part.colour, c * bgAlpha);
+      }
+
+      // Hub, punched back out to the background so the needle reads as pinned.
+      const cHub = coverage((dCentre - 3) * a, 0);
+      if (cHub > 0) blend(px, i, BG, cHub * bgAlpha);
+      const cHubRing = coverage(Math.abs(dCentre - 3) * a, 0.8 * a);
+      if (cHubRing > 0) blend(px, i, TICK, cHubRing * bgAlpha);
     }
   }
 

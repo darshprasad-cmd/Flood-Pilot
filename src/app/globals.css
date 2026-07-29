@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ */
-/*  FloodPilot design tokens                                           */
-/*  Dark, instrument-panel aesthetic. Colour carries meaning only.     */
+/*  दिशाAI design tokens                                                */
+/*                                                                     */
+/*  Calm, spacious, instrument-grade. Colour carries meaning only:     */
+/*  the risk ramp is the single saturated scale in the product, and    */
+/*  nothing decorative is allowed to borrow from it. That is also why  */
+/*  the brand accent is a cool indigo-to-aqua sweep rather than the    */
+/*  saffron an "Indian roots" brief invites — a warm brand colour sits */
+/*  a few degrees from risk-high, and a logo that reads as a warning   */
+/*  is a design bug. The Indian identity is carried by the Devanagari  */
+/*  wordmark and the typography, where it cannot be misread.           */
 /* ------------------------------------------------------------------ */
 
 @theme {
@@ -42,6 +50,25 @@
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-card: 14px;
+  --radius-panel: 20px;
+  --radius-pill: 999px;
+
+  /* Motion. One spring for everything that moves, so the product has a
+     single physical personality rather than a dozen easing opinions. */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Elevation. Soft, low-contrast, far-cast — the Apple Maps register, not
+   the Material one. Kept outside @theme because Tailwind v4 would otherwise
+   generate a shadow utility per step and these are only ever used by name. */
+:root {
+  --shadow-float: 0 2px 6px -2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-lift:
+    0 1px 0 0 rgb(255 255 255 / 0.04) inset,
+    0 4px 12px -4px rgb(0 0 0 / 0.5),
+    0 24px 60px -24px rgb(0 0 0 / 0.85);
+  --gradient-brand: linear-gradient(135deg, #7cc4ff 0%, #2b8cf0 45%, #35d6d6 100%);
 }
 
 /* ------------------------------------------------------------------ */
@@ -188,6 +215,38 @@ body {
   border: 1px solid color-mix(in srgb, var(--color-line-bright) 80%, transparent);
 }
 
+/**
+ * The floating card.
+ *
+ * The landing and the onboarding put content *on* the map rather than beside
+ * it, which only works if the card is legible over both a dark park and a
+ * bright arterial road. Blur plus a deep tint does that; a border alone does
+ * not. Falls back to a solid tint where backdrop-filter is unsupported, since
+ * an unreadable card is a worse failure than a flat one.
+ */
+@utility float-card {
+  background: color-mix(in srgb, var(--color-ink-900) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid color-mix(in srgb, var(--color-line-bright) 70%, transparent);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .float-card {
+    background: color-mix(in srgb, var(--color-ink-900) 97%, transparent);
+  }
+}
+
+/* Brand gradient as text — used once, on the landing, and nowhere else. */
+@utility brand-gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /* Small uppercase label used above every metric in the product */
 @utility eyebrow {
   font-size: 10px;
@@ -266,8 +325,61 @@ body {
   }
 }
 
+/* Onboarding: each question replaces the last, so it needs to arrive rather
+   than appear. Blur on the way in reads as focus settling. */
+@keyframes fp-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes fp-depart {
+  from {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.99);
+    filter: blur(5px);
+  }
+}
+
+/* A slow breath under the "live" dot — the only perpetual motion allowed. */
+@keyframes fp-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
 @utility animate-rise {
-  animation: fp-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fp-rise 0.5s var(--ease-spring) both;
+}
+
+@utility animate-arrive {
+  animation: fp-arrive 0.62s var(--ease-spring) both;
+}
+
+@utility animate-depart {
+  animation: fp-depart 0.32s var(--ease-soft) both;
+}
+
+@utility animate-breathe {
+  animation: fp-breathe 2.6s ease-in-out infinite;
 }
 
 @utility animate-fade {
@@ -353,6 +465,21 @@ body {
 
 .leaflet-control-attribution a {
   color: var(--color-fg-muted) !important;
+}
+
+/**
+ * Cinematic mode — the landing and onboarding maps.
+ *
+ * The basemap drops another stop and loses its controls entirely. Here the map
+ * is scenery being flown through, not an instrument being read, and a zoom
+ * button on a cinematic shot is a scroll bar in a film.
+ */
+.fp-cinematic .leaflet-tile-pane {
+  filter: saturate(0.22) brightness(0.44) contrast(1.1);
+}
+
+.fp-cinematic .leaflet-control-container {
+  display: none;
 }
 
 .fp-flow-line {
