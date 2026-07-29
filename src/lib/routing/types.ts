@@ -63,6 +63,12 @@ export interface RouteComparison {
   safest: RouteResult;
   /** True when the risk-aware search picked the same roads as the time-only one. */
   identical: boolean;
+  /**
+   * False when even the best available route crosses water the vehicle cannot
+   * handle. The route is still returned — seeing that every option is bad is
+   * more useful than being told nothing.
+   */
+  safeRouteExists: boolean;
   /** Extra minutes the safe route costs. */
   extraMinutes: number;
   /** Percentage-point reduction in peak flood probability along the route. */

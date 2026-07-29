@@ -50,6 +50,12 @@ export function planRoutes(
     fastest.legs.length === safest.legs.length &&
     fastest.legs.every((leg, i) => leg.segmentId === safest.legs[i].segmentId);
 
+  // Relabel when the best available route is still not a safe one — calling it
+  // the "recommended safe route" would be a lie the user might act on.
+  if (safest.impassableCount > 0) {
+    safest.label = "Least dangerous route";
+  }
+
   const extraMinutes = Math.max(0, safest.durationMin - fastest.durationMin);
   const riskReduction = Math.max(
     0,
@@ -61,6 +67,7 @@ export function planRoutes(
     fastest,
     safest,
     identical,
+    safeRouteExists: safest.impassableCount === 0,
     extraMinutes,
     riskReduction,
     depthReduction,
@@ -199,14 +206,23 @@ function riskPenaltyMin(
 ): number {
   const probability = state?.floodProbability ?? 0;
 
-  // Hard block: water the vehicle cannot cross removes the road from the graph.
   const limitCm = vehicle
     ? assessSurvivability(vehicle, depthCm, { slopePct: segment.slopePct })
         .maxSafeWadeCm
     : IMPASSABLE_CM;
 
-  if (depthCm > limitCm) return Infinity;
-  if (depthCm >= IMPASSABLE_CM && !vehicle) return Infinity;
+  // Water beyond the vehicle's limit is effectively a wall, but the penalty is
+  // large-and-finite rather than infinite.
+  //
+  // During a cloudburst there may be no crossing of the city that a hatchback
+  // survives. Returning Infinity there produced *no route at all*, which meant
+  // the product went silent at exactly the moment it had the most to say. A
+  // finite wall still guarantees the search prefers any passable alternative,
+  // while leaving a least-bad path to show — flagged leg by leg — so the user
+  // can see that the obvious route is the dangerous one.
+  if (depthCm > limitCm) {
+    return 900 + (depthCm - limitCm) * 25;
+  }
 
   const severity = depthSeverity(depthCm);
   let penalty = probability * severity * RISK_BUDGET_MIN;
@@ -502,6 +518,28 @@ function comparisonExplanations(input: {
     input;
 
   if (identical) {
+    // "Same route" means two very different things depending on whether that
+    // route is safe. Saying "nothing to trade off" about a route that crosses
+    // 31 cm of water would be actively misleading.
+    if (safest.impassableCount > 0) {
+      return [
+        {
+          id: "cmp_same_unsafe",
+          text: `Every way across the city passes through water your vehicle cannot handle — avoiding ${safest.worstLeg?.name ?? "the worst stretch"} is not possible on this network. Changing route will not fix this; changing mode or timing will.`,
+          category: "route",
+          impact: "blocks",
+          weight: 1,
+        },
+        {
+          id: "cmp_same_detail",
+          text: `The deepest point is ${depthLabel(safest.maxDepthCm)} on ${safest.worstLeg?.name ?? "the route"}, against a safe wading depth of ${depthLabel(safest.survivability?.maxSafeWadeCm ?? 0)}.`,
+          category: "vehicle",
+          impact: "blocks",
+          weight: 0.95,
+        },
+      ];
+    }
+
     return [
       {
         id: "cmp_same",
@@ -513,15 +551,25 @@ function comparisonExplanations(input: {
     ];
   }
 
-  const out: Explanation[] = [
-    {
+  const out: Explanation[] = [];
+
+  if (safest.impassableCount > 0) {
+    out.push({
+      id: "cmp_nosafe",
+      text: `There is no route across the city that your vehicle can make right now. This is the least dangerous one, and it still crosses ${depthLabel(safest.maxDepthCm)} of water.`,
+      category: "route",
+      impact: "blocks",
+      weight: 1,
+    });
+  } else {
+    out.push({
       id: "cmp_trade",
       text: `${formatDuration(extraMinutes)} more travel buys a ${Math.round(riskReduction)} point drop in flood probability and ${depthLabel(depthReduction)} less water at the worst point.`,
       category: "route",
       impact: "reduces-risk",
       weight: 1,
-    },
-  ];
+    });
+  }
 
   if (fastest.impassableCount > 0 && safest.impassableCount === 0) {
     out.push({
