@@ -5,7 +5,7 @@ import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://dishaai.netlify.app"),
+  metadataBase: new URL("https://dishaai-delhi.netlify.app"),
   title: {
     default: `${BRAND.name} — ${BRAND.tagline}`,
     template: `%s · ${BRAND.name}`,
