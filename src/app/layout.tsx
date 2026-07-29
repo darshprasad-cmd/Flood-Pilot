@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { I18nProvider } from "@/lib/i18n";
+import { ProfileProvider } from "@/lib/profile";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
@@ -85,7 +86,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
       <body className="min-h-dvh antialiased">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <ProfileProvider>{children}</ProfileProvider>
+        </I18nProvider>
       </body>
     </html>
   );

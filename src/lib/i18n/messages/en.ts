@@ -20,7 +20,7 @@ export const en = {
   },
 
   common: {
-    launchApp: "Launch App",
+    launchApp: "Open the map",
     close: "Close",
     why: "Why?",
     loading: "Loading…",
@@ -35,6 +35,17 @@ export const en = {
     cm: "cm",
     km: "km",
     people: "people",
+    back: "Back",
+    continue: "Continue",
+    skip: "Skip",
+    yes: "Yes",
+    no: "No",
+    search: "Search",
+    change: "Change",
+    simple: "Simple",
+    detailed: "Detailed",
+    showWorking: "Show the working",
+    hideWorking: "Hide the working",
   },
 
   nav: {
@@ -43,6 +54,113 @@ export const en = {
     architecture: "Architecture",
     government: "Government",
     roadmap: "Roadmap",
+    about: "About",
+  },
+
+  landing: {
+    eyebrow: "Delhi NCR",
+    title: "Know the Safest Way Forward.",
+    lede:
+      "An intelligent map that reads Delhi's rain, drains, elevation and roads — then tells you what to do about them.",
+    primaryCta: "Open the map",
+    secondaryCta: "What this is",
+    cityRightNow: "Delhi right now",
+    roadsWatched: "Roads watched",
+    setupTime: "About 40 seconds to set up. No sign-up.",
+    resume: "Continue where you left off",
+    meaningNote:
+      "दिशा means direction — not just which way, but the right way.",
+  },
+
+  onboarding: {
+    welcomeTitle: "Know the Safest Way Forward.",
+    welcomeBody:
+      "Answer a few questions and this becomes your map — your area, your roads, your vehicle.",
+    welcomeCta: "Begin",
+    welcomeNote: "About 40 seconds. Your answers stay on this device.",
+
+    skipSetup: "Skip setup",
+    stepOf: "Step {n} of {total}",
+
+    searchPlaceholder: "Search for an area…",
+    noMatches: "No area matches that.",
+    popular: "Common choices",
+    allAreas: "All areas",
+    optionalNote: "Optional — you can skip this.",
+
+    qHome: "Where do you live?",
+    hHome: "So the map watches your neighbourhood rather than the whole city.",
+    qWork: "Where do you usually travel?",
+    hWork: "Work, college, wherever you go most days.",
+    qCommute: "How do you normally get there?",
+    hCommute: "Water stops different vehicles at very different depths.",
+    qVehicle: "What do you drive?",
+    hVehicle:
+      "What actually stops you is the air intake, not the ground clearance — so this needs the real vehicle.",
+    qBasement: "Do you park in a basement?",
+    hBasement:
+      "Basements fill from the ramp long before the road above floods. If you do, you will be told to move the car early.",
+    qFrequent: "Anywhere else you go often?",
+    hFrequent: "A school, parents, a clinic. These get watched too.",
+    qProactive: "Alerts before flooding starts?",
+    hProactive:
+      "You will be told when your window to leave is closing — not after the road has already gone.",
+    qEmergency: "And emergency alerts?",
+    hEmergency:
+      "Yamuna river warnings, evacuation notices and control-room advisories.",
+
+    buildingTitle: "Building your map",
+    buildingBody:
+      "Reading rainfall, drainage, elevation and every road between your places.",
+    finish: "Open my dashboard",
+
+    placeIndia: "India",
+    placeCity: "Delhi NCR",
+  },
+
+  commute: {
+    car: "Car",
+    two_wheeler: "Two-wheeler",
+    metro: "Metro",
+    bus: "Bus",
+    auto: "Auto or cab",
+    walk: "On foot",
+  },
+
+  dashboard: {
+    tabToday: "Today",
+    tabMap: "Map",
+    tabJourney: "Journey",
+    tabArea: "My area",
+    goodMorning: "Good morning",
+    goodAfternoon: "Good afternoon",
+    goodEvening: "Good evening",
+    goodNight: "Good evening",
+    qSafeToTravel: "Is it safe to travel?",
+    qMyArea: "Is my area at risk?",
+    qMyCar: "Should I move my car?",
+    qRoute: "Which route is safest?",
+    qDisruptions: "What should I expect?",
+    answerYes: "Yes — you can go.",
+    answerCaution: "Go now, and go carefully.",
+    answerWait: "Not right now. Wait.",
+    answerNo: "No. Do not drive this.",
+    areaClear: "Your area is clear.",
+    areaWatch: "Water is building near you.",
+    areaFlooding: "Your area is flooding.",
+    carSafe: "Your car is fine where it is.",
+    carMove: "Move your car now.",
+    noJourneyYet: "Plan a journey to see the safest way there.",
+    planJourney: "Plan a safe journey",
+    checkArea: "Check my area",
+    reportSomething: "Report something",
+    viewAlerts: "View alerts",
+    nothingExpected: "Nothing disruptive expected in the next few hours.",
+    yourPlaces: "Your places",
+    home: "Home",
+    work: "Usual trip",
+    editSetup: "Change my details",
+    lastUpdated: "Updated",
   },
 
   hero: {

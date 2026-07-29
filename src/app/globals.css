@@ -482,6 +482,27 @@ body {
   display: none;
 }
 
+/* Permanent labels on the cinematic pins — a caption on the scenery, not a
+   Leaflet tooltip with a speech-bubble tail. */
+.leaflet-tooltip.fp-cine-label {
+  background: color-mix(in srgb, var(--color-ink-950) 76%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in srgb, var(--color-line-bright) 70%, transparent);
+  border-radius: 8px;
+  color: var(--color-fg);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 3px 7px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.leaflet-tooltip.fp-cine-label::before {
+  display: none;
+}
+
 .fp-flow-line {
   stroke-dasharray: 10 14;
   animation: fp-dash 1s linear infinite;

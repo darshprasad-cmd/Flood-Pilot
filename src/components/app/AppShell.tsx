@@ -36,6 +36,7 @@ import {
 } from "./route-vehicle";
 import { SegmentSheet } from "./SegmentSheet";
 import { JourneyForm, type JourneyFormState } from "./JourneyForm";
+import { TodayPanel } from "./TodayPanel";
 import { ClusterList, type ClusterDto } from "./ReportSheet";
 import {
   LayersControl,
@@ -45,6 +46,7 @@ import {
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Lockup } from "@/components/brand/Logo";
 import { useT } from "@/lib/i18n";
+import { useProfile } from "@/lib/profile";
 import type { MapDrain, MapMarker, MapRoute, MapSegment } from "@/components/map/RiskMap";
 
 const RiskMap = dynamic(() => import("@/components/map/RiskMap"), {
@@ -107,7 +109,10 @@ interface PredictPayload {
   segments: (MapSegment & {
     corridor: string;
     populationExposure: number;
+    // Needed by Today to decide which roads count as "near you".
+    midpoint: { lat: number; lng: number };
     state: MapSegment["state"] & {
+      depthCm: number;
       confidence: number;
       confidenceBand: string;
       recoveryMin: number | null;
@@ -187,7 +192,10 @@ interface CommunityPayload {
  * the map is the base layer and the other two become full-screen surfaces over
  * it, switched from a bottom bar within thumb reach.
  */
-type MobilePane = "plan" | "map" | "brief";
+type MobilePane = "today" | "map" | "plan" | "brief";
+
+/** Which surface the left column is showing on a wide screen. */
+type LeftTab = "today" | "plan";
 
 const DEFAULT_FORM: JourneyFormState = {
   origin: "dwarka",
@@ -203,14 +211,27 @@ const DEFAULT_FORM: JourneyFormState = {
 
 /* -------------------------------------------------------------------------- */
 
-export default function AppShell() {
+export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) {
   const t = useT();
-  const [mobilePane, setMobilePane] = useState<MobilePane>("map");
+  const { profile, update } = useProfile();
+  // The app opens on the answer, not on the instrument. Somebody who has told
+  // us where they live has already asked their question by opening the app.
+  const [mobilePane, setMobilePane] = useState<MobilePane>("today");
+  const [leftTab, setLeftTab] = useState<LeftTab>("today");
   const [cityData, setCityData] = useState<CityPayload | null>(null);
   const [predict, setPredict] = useState<PredictPayload | null>(null);
   const [brief, setBrief] = useState<BriefPayload | null>(null);
   const [scenario, setScenario] = useState("live");
-  const [form, setForm] = useState<JourneyFormState>(DEFAULT_FORM);
+  // Seeded from what onboarding was told. The first plan the app runs should
+  // be the person's actual commute in their actual vehicle, not a demo.
+  const [form, setForm] = useState<JourneyFormState>(() => ({
+    ...DEFAULT_FORM,
+    origin: profile.homeNodeId ?? DEFAULT_FORM.origin,
+    destination: profile.workNodeId ?? DEFAULT_FORM.destination,
+    vehicleId: profile.vehicleId ?? DEFAULT_FORM.vehicleId,
+    vehicleYear: profile.vehicleYear,
+    tyreType: profile.tyreType,
+  }));
   const [tab, setTab] = useState<Tab>("journey");
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [community, setCommunity] = useState<CommunityPayload | null>(null);
@@ -384,6 +405,23 @@ export default function AppShell() {
 
   const scenarioMeta = cityData?.scenarios.find((s) => s.id === scenario);
 
+  /**
+   * Progressive disclosure.
+   *
+   * In simple mode the working is hidden, not removed — confidence, feature
+   * contributions, provenance and the agent trace are all still computed and
+   * are one toggle away. Hiding a confidence score you did not earn would be
+   * dishonest; hiding one from somebody who only asked whether they can get to
+   * work is just good manners.
+   */
+  const detail = profile.detail;
+  const showWorking = detail === "detailed";
+
+  // One source of truth for what the left column renders. The phone's bottom
+  // bar and the desktop tab strip both write to it, so the two never disagree
+  // when a window is resized across the breakpoint mid-session.
+  const showToday = leftTab === "today";
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
       {/* Top bar */}
@@ -420,6 +458,13 @@ export default function AppShell() {
             ))}
           </select>
 
+          <DetailToggle
+            value={detail}
+            onChange={(next) => update({ detail: next })}
+            simpleLabel={t.common.simple}
+            detailedLabel={t.common.detailed}
+          />
+
           <LanguageSwitcher compact />
         </div>
       </header>
@@ -431,13 +476,57 @@ export default function AppShell() {
       ) : null}
 
       <div className="relative flex min-h-0 flex-1 lg:flex-row">
-        {/* Left: journey controls. Full-screen overlay on mobile. */}
+        {/* Left: Today, and the journey form behind it. Full-screen on mobile. */}
         <aside
-          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[320px] lg:shrink-0 lg:border-e lg:border-line lg:bg-transparent ${
-            mobilePane === "plan" ? "block" : "hidden"
+          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[344px] lg:shrink-0 lg:border-e lg:border-line lg:bg-transparent ${
+            mobilePane === "today" || mobilePane === "plan" ? "block" : "hidden"
           }`}
         >
-          {cityData ? (
+          {/* On a wide screen this column carries both surfaces, so it needs
+              its own switch. On a phone the bottom bar already made the choice. */}
+          <div className="sticky top-0 z-10 hidden gap-1 border-b border-line bg-ink-950/95 px-3 py-2 backdrop-blur lg:flex">
+            {(["today", "plan"] as LeftTab[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setLeftTab(id)}
+                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                  leftTab === id ? "bg-ink-800 text-fg" : "text-fg-faint hover:text-fg-muted"
+                }`}
+              >
+                {id === "today" ? t.dashboard.tabToday : t.dashboard.tabJourney}
+              </button>
+            ))}
+          </div>
+
+          {!cityData ? (
+            <div className="space-y-3 p-4">
+              <Skeleton className="h-9" />
+              <Skeleton className="h-9" />
+              <Skeleton className="h-9" />
+            </div>
+          ) : showToday ? (
+            <TodayPanel
+              profile={profile}
+              nodes={cityData.nodes}
+              segments={predict?.segments ?? []}
+              comparison={brief?.comparison ?? null}
+              survivability={brief?.survivability ?? null}
+              decision={brief?.decision ?? null}
+              alerts={brief?.alerts ?? []}
+              congestion={community?.congestionForecast ?? []}
+              recommendedDepartureClock={
+                brief?.timeline.recommendedDepartureClock ?? null
+              }
+              onPlanJourney={() => {
+                setLeftTab("plan");
+                setMobilePane("plan");
+              }}
+              onOpenMap={() => setMobilePane("map")}
+              onSelectSegment={setSelectedSegmentId}
+              onEditSetup={() => onEditSetup?.()}
+            />
+          ) : (
             <JourneyForm
               nodes={cityData.nodes}
               vehicles={cityData.vehicles}
@@ -447,12 +536,6 @@ export default function AppShell() {
               onSubmit={planJourney}
               busy={planning}
             />
-          ) : (
-            <div className="space-y-3 p-4">
-              <Skeleton className="h-9" />
-              <Skeleton className="h-9" />
-              <Skeleton className="h-9" />
-            </div>
           )}
         </aside>
 
@@ -593,14 +676,27 @@ export default function AppShell() {
                     noSafeWindow={brief.timeline.noSafeWindow}
                   />
 
-                  <WhyPanel
-                    explanations={
-                      (brief.comparison?.explanations ?? []) as ExplanationDto[]
-                    }
-                  />
-
-                  <SourcePanel sources={brief.sources} />
-                  <AgentTracePanel trace={brief.trace} />
+                  {/* The working. Present for anyone who wants it, absent for
+                      anyone who just asked whether they can get to work. */}
+                  {showWorking ? (
+                    <>
+                      <WhyPanel
+                        explanations={
+                          (brief.comparison?.explanations ?? []) as ExplanationDto[]
+                        }
+                      />
+                      <SourcePanel sources={brief.sources} />
+                      <AgentTracePanel trace={brief.trace} />
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => update({ detail: "detailed" })}
+                      className="w-full rounded-xl border border-line px-4 py-3 text-[12.5px] text-fg-faint transition-colors hover:border-line-bright hover:text-fg-muted"
+                    >
+                      {t.common.showWorking}
+                    </button>
+                  )}
                 </>
               ) : (
                 <div className="space-y-3">
@@ -611,7 +707,11 @@ export default function AppShell() {
               )
             ) : tab === "city" ? (
               predict ? (
-                <CityConditions predict={predict} onSelect={setSelectedSegmentId} />
+                <CityConditions
+                  predict={predict}
+                  onSelect={setSelectedSegmentId}
+                  showWorking={showWorking}
+                />
               ) : (
                 <Skeleton className="h-64" />
               )
@@ -628,15 +728,19 @@ export default function AppShell() {
       <nav className="glass safe-bottom z-30 flex shrink-0 border-t lg:hidden">
         {(
           [
-            ["plan", t.app.tabPlan, <PlanIcon key="p" />],
+            ["today", t.dashboard.tabToday, <TodayIcon key="t" />],
             ["map", t.app.tabMap, <MapIcon key="m" />],
+            ["plan", t.app.tabPlan, <PlanIcon key="p" />],
             ["brief", t.app.tabBrief, <BriefIcon key="b" />],
           ] as [MobilePane, string, React.ReactNode][]
         ).map(([id, label, icon]) => (
           <button
             key={id}
             type="button"
-            onClick={() => setMobilePane(id)}
+            onClick={() => {
+              setMobilePane(id);
+              if (id === "today" || id === "plan") setLeftTab(id);
+            }}
             aria-current={mobilePane === id ? "page" : undefined}
             className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
               mobilePane === id ? "text-signal-300" : "text-fg-faint"
@@ -660,6 +764,20 @@ export default function AppShell() {
         />
       ) : null}
     </div>
+  );
+}
+
+function TodayIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10 6.2v4l2.6 1.6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -716,9 +834,11 @@ function BriefIcon() {
 function CityConditions({
   predict,
   onSelect,
+  showWorking,
 }: {
   predict: PredictPayload;
   onSelect: (id: string) => void;
+  showWorking: boolean;
 }) {
   const t = useT();
   const worst = [...predict.segments]
@@ -755,19 +875,21 @@ function CityConditions({
             value={predict.summary.hotspotsActive}
           />
         </div>
-        <div className="border-t border-line px-4 py-3">
-          <ConfidenceMeter
-            score={predict.summary.meanConfidence}
-            band={
-              predict.summary.meanConfidence >= 0.75
-                ? "high"
-                : predict.summary.meanConfidence >= 0.5
-                  ? "moderate"
-                  : "low"
-            }
-            compact
-          />
-        </div>
+        {showWorking ? (
+          <div className="border-t border-line px-4 py-3">
+            <ConfidenceMeter
+              score={predict.summary.meanConfidence}
+              band={
+                predict.summary.meanConfidence >= 0.75
+                  ? "high"
+                  : predict.summary.meanConfidence >= 0.5
+                    ? "moderate"
+                    : "low"
+              }
+              compact
+            />
+          </div>
+        ) : null}
       </Card>
 
       {predict.gauges.length > 0 ? (
@@ -826,8 +948,53 @@ function CityConditions({
         </ul>
       </Card>
 
-      <SourcePanel sources={predict.signalSources} />
+      {showWorking ? <SourcePanel sources={predict.signalSources} /> : null}
     </>
+  );
+}
+
+/**
+ * Simple / Detailed.
+ *
+ * A segmented control rather than a settings item, because the whole point is
+ * that switching is cheap and reversible — somebody should be able to look at
+ * the working, satisfy themselves, and put it away again without hunting.
+ */
+function DetailToggle({
+  value,
+  onChange,
+  simpleLabel,
+  detailedLabel,
+}: {
+  value: "simple" | "detailed";
+  onChange: (next: "simple" | "detailed") => void;
+  simpleLabel: string;
+  detailedLabel: string;
+}) {
+  return (
+    <div
+      className="hidden rounded-lg border border-line bg-ink-850 p-0.5 sm:flex"
+      role="group"
+    >
+      {(
+        [
+          ["simple", simpleLabel],
+          ["detailed", detailedLabel],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          aria-pressed={value === id}
+          className={`rounded-[6px] px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+            value === id ? "bg-ink-750 text-fg" : "text-fg-faint hover:text-fg-muted"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

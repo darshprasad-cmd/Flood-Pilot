@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import AppShell from "@/components/app/AppShell";
+import AppEntry from "@/components/app/AppEntry";
 
 export const metadata: Metadata = {
-  title: "Flood intelligence",
+  title: "My map",
   description:
-    "Live flood risk, risk-based routing and vehicle survivability across Delhi NCR.",
+    "Your area, your roads and your vehicle — live flood risk, risk-based routing and one clear recommendation across Delhi NCR.",
 };
 
 export default function AppPage() {
-  return <AppShell />;
+  return <AppEntry />;
 }
