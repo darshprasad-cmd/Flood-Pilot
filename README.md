@@ -251,26 +251,33 @@ Swapping it means implementing one interface.
 
 ## Deployment — Netlify
 
-`netlify.toml` is committed and the repository is deploy-ready. Netlify
-auto-detects Next.js and installs its Next.js Runtime; the config supplies the
-build command, Node 20, security headers for `/gov`, and — importantly — bundles
-`public/data/**` into the serverless functions so the OpenStreetMap drainage
-layer is readable at runtime.
+**Live: <https://dishaai-delhi.netlify.app>**
 
-**Connect the repo (recommended, no CLI):**
+The subdomain is romanised because DNS labels are ASCII-only — `दिशाAI` cannot
+be a hostname. Everything a user sees is still दिशाAI: the tab title, the PWA
+name, the home-screen icon and the wordmark.
 
-1. <https://app.netlify.com/start> → *Import from Git* → GitHub →
-   `darshprasad-cmd/Flood-Pilot`
-2. Leave the build settings alone — they come from `netlify.toml`
-3. Deploy
+`netlify.toml` supplies the build command, Node 20, security headers for `/gov`,
+and — importantly — bundles `public/data/**` into the serverless functions so
+the OpenStreetMap drainage layer is readable at runtime. The Next.js Runtime is
+deliberately not pinned here; Netlify installs the version it actually ships.
 
-**Or from the command line:**
+Redeploy from a clean checkout with:
 
 ```bash
-npx netlify-cli login
-npx netlify-cli init
 npx netlify-cli deploy --build --prod
 ```
+
+### Continuous deployment
+
+Linking the GitHub repository requires granting Netlify access to the GitHub
+account, which is an OAuth consent only the account owner can give:
+
+*Project configuration → Build & deploy → Continuous deployment → Link
+repository* → GitHub → `darshprasad-cmd/Flood-Pilot` → branch `main`.
+
+Leave the build settings alone once linked — they come from `netlify.toml`.
+Until that is done, deploys are manual via the command above.
 
 ### Environment variables
 
@@ -279,8 +286,9 @@ under *Site configuration → Environment variables* to enable more:
 `IMD_API_KEY`, `CWC_API_KEY` (or `YAMUNA_LEVEL_M`), `GOOGLE_MAPS_API_KEY`,
 `DATABASE_URL`, `GOV_ACCESS_CODE`, `FLOODPILOT_HOTSPOTS_URL`.
 
-Set `GOV_ACCESS_CODE` before sharing the URL — otherwise the operations
-dashboard is reachable with the documented development code.
+`GOV_ACCESS_CODE` **is already set on the live deployment** to a generated
+value, so the operations dashboard is not reachable with the development code
+printed above. Rotate it under *Site configuration → Environment variables*.
 
 ### What to expect on serverless
 
