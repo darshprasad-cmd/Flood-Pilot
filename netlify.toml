@@ -1,0 +1,46 @@
+# Netlify deployment configuration
+#
+# Netlify auto-detects Next.js and installs its Next.js Runtime, so the plugin
+# is deliberately NOT declared here — pinning it manually is how you end up with
+# a runtime version that disagrees with the one Netlify actually ships.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Next 15 needs 18.18+; 20 is the current Netlify LTS.
+  NODE_VERSION = "20"
+  # The OSM drainage layer is ~600 KB of committed JSON, not a build artefact.
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[functions]
+  # The engine reads public/data/<city>-osm-drainage.json from disk at runtime.
+  # Static assets are served by the CDN but are not otherwise present in a
+  # function's filesystem, so it has to be bundled in explicitly or every
+  # prediction silently loses its OpenStreetMap drainage enrichment.
+  included_files = ["public/data/**"]
+
+# The operations dashboard must not be indexed or cached anywhere.
+[[headers]]
+  for = "/gov"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/gov/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+
+# Predictions change every few minutes; never let a CDN hold one.
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

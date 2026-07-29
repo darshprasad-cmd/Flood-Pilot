@@ -193,13 +193,46 @@ Swapping it means implementing one interface.
 
 ---
 
-## Deployment
+## Deployment — Netlify
 
-Deploys to Vercel with no configuration. `vercel.json` pins the Mumbai region
-(`bom1`) to keep latency to Indian data sources low. The build is verified green;
-the in-memory store means citizen reports live for the lifetime of an instance,
-so set `DATABASE_URL` for anything beyond evaluation.
+`netlify.toml` is committed and the repository is deploy-ready. Netlify
+auto-detects Next.js and installs its Next.js Runtime; the config supplies the
+build command, Node 20, security headers for `/gov`, and — importantly — bundles
+`public/data/**` into the serverless functions so the OpenStreetMap drainage
+layer is readable at runtime.
+
+**Connect the repo (recommended, no CLI):**
+
+1. <https://app.netlify.com/start> → *Import from Git* → GitHub →
+   `darshprasad-cmd/Flood-Pilot`
+2. Leave the build settings alone — they come from `netlify.toml`
+3. Deploy
+
+**Or from the command line:**
 
 ```bash
-npm run build && npm start
+npx netlify-cli login
+npx netlify-cli init
+npx netlify-cli deploy --build --prod
+```
+
+### Environment variables
+
+None are required — the app runs on open data out of the box. Add any of these
+under *Site configuration → Environment variables* to enable more:
+`IMD_API_KEY`, `CWC_API_KEY` (or `YAMUNA_LEVEL_M`), `GOOGLE_MAPS_API_KEY`,
+`DATABASE_URL`, `GOV_ACCESS_CODE`, `FLOODPILOT_HOTSPOTS_URL`.
+
+Set `GOV_ACCESS_CODE` before sharing the URL — otherwise the operations
+dashboard is reachable with the documented development code.
+
+### What to expect on serverless
+
+The default store is in-memory, so citizen reports and the learned calibration
+live for the lifetime of a function instance and are not shared between them.
+That is fine for evaluation and wrong for production: set `DATABASE_URL` and
+apply `db/schema.sql` for anything real.
+
+```bash
+npm run build && npm start   # production build locally
 ```
