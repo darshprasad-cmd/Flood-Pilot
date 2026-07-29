@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, Badge, Card, CardHeader, Metric, RiskPill } from "@/components/ui/primitives";
+import { useT, type Messages } from "@/lib/i18n";
 
 /* -------------------------------------------------------------------------- */
 /*  Route comparison                                                          */
@@ -70,20 +71,27 @@ export function RouteComparison({
   onSelectLeg?: (segmentId: string) => void;
   className?: string;
 }) {
+  const t = useT();
   const { fastest, safest, identical, safeRouteExists, extraMinutes } = comparison;
 
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <RouteCard route={fastest} accent="#f08a3c" subtitle="What a maps app gives you" />
+        <RouteCard
+          route={fastest}
+          accent="#f08a3c"
+          title={t.route.fastest}
+          subtitle={t.route.whatMapsGives}
+          t={t}
+        />
         <RouteCard
           route={safest}
           accent={safeRouteExists ? "#2fbf6f" : "#e8503a"}
+          title={safeRouteExists ? t.route.recommended : t.route.leastDangerous}
           subtitle={
-            safeRouteExists
-              ? "What FloodPilot recommends"
-              : "Best available — still not safe"
+            safeRouteExists ? t.route.whatWeRecommend : t.route.bestAvailable
           }
+          t={t}
           highlighted
         />
       </div>
@@ -92,34 +100,32 @@ export function RouteComparison({
         <div className="px-4 py-3">
           {identical ? (
             <p className="text-[13px] leading-relaxed text-fg-muted">
-              {safeRouteExists
-                ? "Both searches picked the same roads. There is no safer alternative to trade time for right now — which is good news."
-                : "Both searches picked the same roads because every alternative is worse. Changing route cannot fix this journey."}
+              {safeRouteExists ? t.route.sameRouteSafe : t.route.sameRouteUnsafe}
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <Metric
-                label="Extra time"
+                label={t.route.extraTime}
                 value={`+${Math.round(extraMinutes)}`}
-                unit="min"
+                unit={t.common.min}
                 size="sm"
               />
               <Metric
-                label="Risk reduction"
+                label={t.route.riskReduction}
                 value={`−${Math.round(comparison.riskReduction)}`}
                 unit="pts"
                 tone="safe"
                 size="sm"
               />
               <Metric
-                label="Less water"
+                label={t.route.lessWater}
                 value={`−${Math.round(comparison.depthReduction)}`}
-                unit="cm"
+                unit={t.common.cm}
                 tone="safe"
                 size="sm"
               />
               <Metric
-                label="Underpasses avoided"
+                label={t.route.underpassesAvoided}
                 value={Math.max(0, fastest.underpassCount - safest.underpassCount)}
                 tone="safe"
                 size="sm"
@@ -131,9 +137,13 @@ export function RouteComparison({
 
       <Card>
         <CardHeader
-          eyebrow="Segment by segment"
-          title={safest.label}
-          right={<Badge tone="neutral">{safest.legs.length} roads</Badge>}
+          eyebrow={t.route.segmentByStep}
+          title={safeRouteExists ? t.route.recommended : t.route.leastDangerous}
+          right={
+            <Badge tone="neutral">
+              {safest.legs.length} {t.route.roads}
+            </Badge>
+          }
         />
         <ol className="divide-y divide-line">
           {safest.legs.map((leg) => (
@@ -162,9 +172,11 @@ export function RouteComparison({
                     {leg.depthOnArrivalCm.toFixed(0)} cm
                   </span>
                   {leg.isUnderpass ? (
-                    <Badge tone="warn">Underpass</Badge>
+                    <Badge tone="warn">{t.route.underpass}</Badge>
                   ) : null}
-                  {leg.impassable ? <Badge tone="danger">Impassable</Badge> : null}
+                  {leg.impassable ? (
+                    <Badge tone="danger">{t.route.impassable}</Badge>
+                  ) : null}
                 </div>
                 {leg.warning ? (
                   <p className="mt-1.5 text-[11px] leading-snug text-risk-high">
@@ -183,12 +195,16 @@ export function RouteComparison({
 function RouteCard({
   route,
   accent,
+  title,
   subtitle,
+  t,
   highlighted = false,
 }: {
   route: RouteDto;
   accent: string;
+  title: string;
   subtitle: string;
+  t: Messages;
   highlighted?: boolean;
 }) {
   return (
@@ -197,21 +213,25 @@ function RouteCard({
       style={{ borderTopWidth: 2, borderTopColor: accent }}
     >
       <div className="px-4 py-3">
-        <p className="eyebrow mb-1">{route.label}</p>
+        <p className="eyebrow mb-1">{title}</p>
         <p className="mb-3 text-[11px] text-fg-faint">{subtitle}</p>
 
         <div className="flex items-end justify-between gap-3">
           <p className="numeric text-3xl font-semibold leading-none">
             {Math.round(route.durationMin)}
-            <span className="ml-1 text-sm font-medium text-fg-faint">min</span>
+            <span className="ms-1 text-sm font-medium text-fg-faint">
+              {t.common.min}
+            </span>
           </p>
-          <RiskPill level={route.riskLevel} />
+          <RiskPill level={route.riskLevel}>
+            {t.risk[route.riskLevel as keyof Messages["risk"]] ?? route.riskLevel}
+          </RiskPill>
         </div>
 
         <div className="mt-4 space-y-2.5">
           <div>
             <div className="mb-1 flex justify-between text-[11px]">
-              <span className="text-fg-faint">Safe route score</span>
+              <span className="text-fg-faint">{t.route.safeRouteScore}</span>
               <span className="numeric font-semibold" style={{ color: accent }}>
                 {route.safeRouteScore}/100
               </span>
@@ -221,19 +241,19 @@ function RouteCard({
 
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
             <span className="text-fg-faint">
-              Deepest{" "}
+              {t.stats.deepest}{" "}
               <span className="numeric font-semibold text-fg-muted">
-                {route.maxDepthCm.toFixed(0)} cm
+                {route.maxDepthCm.toFixed(0)} {t.common.cm}
               </span>
             </span>
             <span className="text-fg-faint">
-              Peak risk{" "}
+              {t.route.peakRisk}{" "}
               <span className="numeric font-semibold text-fg-muted">
                 {Math.round(route.maxProbability * 100)}%
               </span>
             </span>
             <span className="text-fg-faint">
-              Underpasses{" "}
+              {t.route.underpasses}{" "}
               <span className="numeric font-semibold text-fg-muted">
                 {route.underpassCount}
               </span>
@@ -263,22 +283,10 @@ export interface SurvivabilityDto {
   flowWarning: string | null;
 }
 
-const BAND_STYLE: Record<string, { color: string; label: string; blurb: string }> = {
-  safe: {
-    color: "#2fbf6f",
-    label: "Safe",
-    blurb: "Well within what this vehicle handles.",
-  },
-  borderline: {
-    color: "#e8b62c",
-    label: "Borderline",
-    blurb: "Passable, but with no margin for error.",
-  },
-  unsafe: {
-    color: "#e8503a",
-    label: "Unsafe",
-    blurb: "Beyond what this vehicle can cross.",
-  },
+const BAND_COLOR: Record<string, string> = {
+  safe: "#2fbf6f",
+  borderline: "#e8b62c",
+  unsafe: "#e8503a",
 };
 
 /**
@@ -298,7 +306,20 @@ export function VehicleCard({
   survivability: SurvivabilityDto;
   className?: string;
 }) {
-  const style = BAND_STYLE[survivability.band] ?? BAND_STYLE.borderline;
+  const t = useT();
+  const color = BAND_COLOR[survivability.band] ?? BAND_COLOR.borderline;
+  const bandLabel =
+    survivability.band === "safe"
+      ? t.vehicleCard.safe
+      : survivability.band === "unsafe"
+        ? t.vehicleCard.unsafe
+        : t.vehicleCard.borderline;
+  const bandBlurb =
+    survivability.band === "safe"
+      ? t.vehicleCard.safeBlurb
+      : survivability.band === "unsafe"
+        ? t.vehicleCard.unsafeBlurb
+        : t.vehicleCard.borderlineBlurb;
   const scale = Math.max(
     survivability.intakeHeightCm * 1.15,
     survivability.againstDepthCm * 1.15,
@@ -310,14 +331,14 @@ export function VehicleCard({
   return (
     <Card className={className}>
       <CardHeader
-        eyebrow="Vehicle survivability"
+        eyebrow={t.vehicleCard.title}
         title={vehicleName}
         right={
           <span
             className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-            style={{ background: `${style.color}22`, color: style.color }}
+            style={{ background: `${color}22`, color }}
           >
-            {style.label}
+            {bandLabel}
           </span>
         }
       />
@@ -325,15 +346,15 @@ export function VehicleCard({
       <div className="px-4 py-4">
         <div className="mb-4 flex items-end gap-5">
           <Metric
-            label="Water on route"
+            label={t.vehicleCard.waterOnRoute}
             value={survivability.againstDepthCm.toFixed(0)}
-            unit="cm"
+            unit={t.common.cm}
             size="lg"
           />
           <Metric
-            label="Safe wading depth"
+            label={t.vehicleCard.safeWadingDepth}
             value={survivability.maxSafeWadeCm.toFixed(0)}
-            unit="cm"
+            unit={t.common.cm}
             size="md"
             tone="muted"
           />
@@ -351,20 +372,22 @@ export function VehicleCard({
           <Threshold
             left={pct(survivability.maxSafeWadeCm)}
             color="#e8b62c"
-            label="Wading limit"
+            label={t.vehicleCard.wadingLimit}
           />
           <Threshold
             left={pct(survivability.intakeHeightCm)}
             color="#e8503a"
-            label="Air intake"
+            label={t.vehicleCard.airIntake}
           />
         </div>
         <div className="mt-1.5 flex justify-between text-[10px] text-fg-faint">
-          <span>0 cm</span>
-          <span className="numeric">{Math.round(scale)} cm</span>
+          <span>0 {t.common.cm}</span>
+          <span className="numeric">
+            {Math.round(scale)} {t.common.cm}
+          </span>
         </div>
 
-        <p className="mt-3 text-[12px] text-fg-muted">{style.blurb}</p>
+        <p className="mt-3 text-[12px] text-fg-muted">{bandBlurb}</p>
 
         <ul className="mt-3 space-y-1.5">
           {survivability.reasons.slice(0, 5).map((reason, index) => (
@@ -452,6 +475,13 @@ export function DecisionCard({
   emergencyContacts?: { name: string; authority: string; phone: string[] }[];
   className?: string;
 }) {
+  const t = useT();
+
+  // The action verb is translated from its stable identifier; the headline that
+  // follows interpolates live numbers and stays in English for now.
+  const actionLabel = (option: DecisionOptionDto) =>
+    t.decision[option.action as keyof Messages["decision"]] ?? option.label;
+
   return (
     <div className={`space-y-3 ${className}`}>
       <div
@@ -466,16 +496,16 @@ export function DecisionCard({
                 : "#e8503a",
         }}
       >
-        <p className="eyebrow mb-2">Recommended action</p>
+        <p className="eyebrow mb-2">{t.app.recommendedAction}</p>
         <h2 className="text-2xl font-semibold tracking-tight text-fg">
-          {primary.label}
+          {actionLabel(primary)}
         </h2>
         <p className="mt-2 text-[13.5px] leading-relaxed text-fg-muted">
           {primary.headline}
         </p>
         {primary.etaMin !== null ? (
           <p className="numeric mt-3 text-[12px] text-fg-faint">
-            Estimated journey {Math.round(primary.etaMin)} min
+            {t.app.estimatedJourney} {Math.round(primary.etaMin)} {t.common.min}
           </p>
         ) : null}
       </div>
@@ -484,11 +514,13 @@ export function DecisionCard({
         <div
           key={option.action}
           className="surface px-4 py-3"
-          style={{ borderLeftWidth: 2, borderLeftColor: "#e8503a" }}
+          style={{ borderInlineStartWidth: 2, borderInlineStartColor: "#e8503a" }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <p className="text-[13px] font-semibold text-fg">{option.label}</p>
-            <Badge tone="danger">Act now</Badge>
+            <p className="text-[13px] font-semibold text-fg">
+              {actionLabel(option)}
+            </p>
+            <Badge tone="danger">{t.app.actNow}</Badge>
           </div>
           <p className="text-[12px] leading-snug text-fg-muted">{option.headline}</p>
         </div>
@@ -496,12 +528,17 @@ export function DecisionCard({
 
       {alternatives.length > 0 ? (
         <Card>
-          <CardHeader eyebrow="Also considered" title="Other options" />
+          <CardHeader
+            eyebrow={t.app.alsoConsidered}
+            title={t.app.otherOptions}
+          />
           <ul className="divide-y divide-line">
             {alternatives.map((option) => (
               <li key={option.action} className="px-4 py-2.5">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-[12.5px] font-medium text-fg">{option.label}</p>
+                  <p className="text-[12.5px] font-medium text-fg">
+                    {actionLabel(option)}
+                  </p>
                   <span className="numeric shrink-0 text-[11px] text-fg-faint">
                     {Math.round(option.score)}
                   </span>
@@ -517,7 +554,10 @@ export function DecisionCard({
 
       {emergencyContacts.length > 0 ? (
         <Card>
-          <CardHeader eyebrow="If you are stuck" title="Flood control rooms" />
+          <CardHeader
+            eyebrow={t.app.ifYouAreStuck}
+            title={t.app.controlRooms}
+          />
           <ul className="divide-y divide-line">
             {emergencyContacts.map((contact) => (
               <li key={contact.name} className="px-4 py-2.5">

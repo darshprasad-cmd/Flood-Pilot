@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Bar, Badge, Card, CardHeader, Empty, RiskPill } from "@/components/ui/primitives";
+import { useT, type Messages } from "@/lib/i18n";
 
 /* -------------------------------------------------------------------------- */
 /*  Why panel                                                                 */
@@ -32,7 +33,7 @@ const IMPACT_STYLE: Record<string, { color: string; glyph: string; label: string
  * this is a view of the reasoning rather than a story told next to it.
  */
 export function WhyPanel({
-  title = "Why this recommendation?",
+  title,
   explanations,
   limit = 8,
   className = "",
@@ -42,16 +43,18 @@ export function WhyPanel({
   limit?: number;
   className?: string;
 }) {
+  const t = useT();
   if (explanations.length === 0) return null;
 
   return (
     <Card className={className}>
       <CardHeader
-        eyebrow="Explainable AI"
-        title={title}
+        eyebrow={t.explain.eyebrow}
+        title={title ?? t.explain.title}
         right={
           <Badge tone="signal">
-            {explanations.length} factor{explanations.length === 1 ? "" : "s"}
+            {explanations.length}{" "}
+            {explanations.length === 1 ? t.explain.factor : t.explain.factors}
           </Badge>
         }
       />
@@ -118,12 +121,13 @@ export function SourcePanel({
   sources: SourceUsageDto[];
   className?: string;
 }) {
+  const t = useT();
   const used = sources.filter((s) => s.used);
   const unavailable = sources.filter((s) => !s.used);
 
   return (
     <Card className={className}>
-      <CardHeader eyebrow="Transparency" title="Prediction based on" />
+      <CardHeader eyebrow={t.explain.transparency} title={t.explain.basedOn} />
       <div className="px-4 py-3">
         <ul className="space-y-2.5">
           {used.map((source) => (
@@ -149,7 +153,7 @@ export function SourcePanel({
 
         {unavailable.length > 0 ? (
           <div className="mt-4 border-t border-line pt-3">
-            <p className="eyebrow mb-2">Preferred sources not connected</p>
+            <p className="eyebrow mb-2">{t.explain.notConnected}</p>
             <ul className="space-y-2">
               {unavailable.map((source) => (
                 <li
@@ -221,22 +225,23 @@ export function TimelinePanel({
   noSafeWindow: boolean;
   className?: string;
 }) {
+  const t = useT();
   return (
     <Card className={className}>
       <CardHeader
-        eyebrow="Next 12 hours"
-        title="Prediction timeline"
+        eyebrow={t.timeline.next12h}
+        title={t.timeline.title}
         right={
           noSafeWindow ? (
-            <Badge tone="danger">No safe window</Badge>
+            <Badge tone="danger">{t.timeline.noSafeWindow}</Badge>
           ) : latestSafeDepartureMin !== null ? (
-            <Badge tone="warn">Window closes</Badge>
+            <Badge tone="warn">{t.timeline.windowCloses}</Badge>
           ) : null
         }
       />
 
       {events.length === 0 ? (
-        <Empty>Nothing forecast to happen in the next twelve hours.</Empty>
+        <Empty>{t.timeline.empty}</Empty>
       ) : (
         <ol className="relative px-4 py-4">
           <div
@@ -284,7 +289,7 @@ export function TimelinePanel({
 
       {recommendedDepartureClock ? (
         <div className="border-t border-line bg-aqua-400/[0.06] px-4 py-3">
-          <p className="eyebrow mb-1">Recommended departure</p>
+          <p className="eyebrow mb-1">{t.timeline.recommendedDeparture}</p>
           <p className="numeric text-2xl font-semibold text-aqua-400">
             {recommendedDepartureClock}
           </p>
@@ -313,11 +318,15 @@ export function BlockageList({
   blockages: BlockageDto[];
   className?: string;
 }) {
+  const t = useT();
   if (blockages.length === 0) return null;
 
   return (
     <Card className={className}>
-      <CardHeader eyebrow="Failure modes" title="What is likely to go wrong here" />
+      <CardHeader
+        eyebrow={t.segment.failureModes}
+        title={t.segment.whatGoesWrong}
+      />
       <ul className="divide-y divide-line">
         {blockages.map((blockage) => (
           <li key={blockage.kind} className="px-4 py-3">
@@ -369,6 +378,7 @@ export function AlertList({
   alerts: AlertDto[];
   className?: string;
 }) {
+  const t = useT();
   if (alerts.length === 0) return null;
 
   return (
@@ -378,8 +388,8 @@ export function AlertList({
           key={alert.id}
           className="surface flex gap-3 px-4 py-3"
           style={{
-            borderLeftWidth: 2,
-            borderLeftColor:
+            borderInlineStartWidth: 2,
+            borderInlineStartColor:
               alert.severity === "critical" || alert.severity === "severe"
                 ? "#e8503a"
                 : alert.severity === "high"
@@ -392,7 +402,9 @@ export function AlertList({
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
               <p className="text-[13px] font-semibold text-fg">{alert.title}</p>
-              <RiskPill level={alert.severity} />
+              <RiskPill level={alert.severity}>
+                {t.risk[alert.severity as keyof Messages["risk"]] ?? alert.severity}
+              </RiskPill>
             </div>
             <p className="text-[12px] leading-snug text-fg-muted">{alert.body}</p>
           </div>
@@ -431,11 +443,12 @@ export function AgentTracePanel({
   trace: AgentTraceDto[];
   className?: string;
 }) {
+  const t = useT();
   if (trace.length === 0) return null;
 
   return (
     <Card className={className}>
-      <CardHeader eyebrow="AI architecture" title="Agents that produced this" />
+      <CardHeader eyebrow={t.explain.architecture} title={t.explain.agents} />
       <ul className="divide-y divide-line">
         {trace.map((entry) => (
           <li key={entry.agent} className="px-4 py-2.5">

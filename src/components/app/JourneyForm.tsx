@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useT } from "@/lib/i18n";
 
 export interface JourneyFormState {
   origin: string;
@@ -56,6 +57,7 @@ export function JourneyForm({
   onSubmit: () => void;
   busy: boolean;
 }) {
+  const t = useT();
   const sortedNodes = useMemo(
     () => [...nodes].sort((a, b) => a.name.localeCompare(b.name)),
     [nodes],
@@ -89,9 +91,9 @@ export function JourneyForm({
       }}
     >
       <section className="space-y-3">
-        <h2 className="eyebrow">Journey</h2>
+        <h2 className="eyebrow">{t.app.journey}</h2>
 
-        <Field label="From">
+        <Field label={t.app.from}>
           <Select
             value={value.origin}
             onChange={(v) => set("origin", v)}
@@ -103,7 +105,7 @@ export function JourneyForm({
           />
         </Field>
 
-        <Field label="To">
+        <Field label={t.app.to}>
           <Select
             value={value.destination}
             onChange={(v) => set("destination", v)}
@@ -115,7 +117,9 @@ export function JourneyForm({
           />
         </Field>
 
-        <Field label={`Leaving in ${value.departInMin} min`}>
+        <Field
+          label={`${t.app.leavingIn} ${value.departInMin} ${t.common.min}`}
+        >
           <input
             type="range"
             min={0}
@@ -126,16 +130,16 @@ export function JourneyForm({
             className="w-full accent-signal-500"
           />
           <div className="mt-0.5 flex justify-between text-[10px] text-fg-faint">
-            <span>Now</span>
-            <span>3 hours</span>
+            <span>{t.common.now}</span>
+            <span>{t.app.threeHours}</span>
           </div>
         </Field>
       </section>
 
       <section className="space-y-3">
-        <h2 className="eyebrow">Vehicle</h2>
+        <h2 className="eyebrow">{t.app.vehicle}</h2>
 
-        <Field label="Model">
+        <Field label={t.app.model}>
           <Select
             value={value.vehicleId}
             onChange={(v) => set("vehicleId", v)}
@@ -148,7 +152,7 @@ export function JourneyForm({
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Year">
+          <Field label={t.app.year}>
             <input
               type="number"
               min={1990}
@@ -159,15 +163,15 @@ export function JourneyForm({
             />
           </Field>
 
-          <Field label="Tyres">
+          <Field label={t.app.tyres}>
             <Select
               value={value.tyreType}
               onChange={(v) => set("tyreType", v)}
               options={[
-                { value: "standard", label: "Standard" },
-                { value: "wet_grip", label: "Wet grip" },
-                { value: "all_terrain", label: "All-terrain" },
-                { value: "worn", label: "Worn" },
+                { value: "standard", label: t.tyre.standard },
+                { value: "wet_grip", label: t.tyre.wet_grip },
+                { value: "all_terrain", label: t.tyre.all_terrain },
+                { value: "worn", label: t.tyre.worn },
               ]}
             />
           </Field>
@@ -179,16 +183,15 @@ export function JourneyForm({
             <span className="capitalize">
               {selectedVehicle.bodyType.replace("_", " ")}
             </span>
-            . Clearance alone does not decide what you can cross — body style
-            usually matters more.
+            . {t.app.clearanceHint}
           </p>
         ) : null}
       </section>
 
       <section className="space-y-3">
-        <h2 className="eyebrow">Context</h2>
+        <h2 className="eyebrow">{t.app.context}</h2>
 
-        <Field label="Purpose">
+        <Field label={t.app.purpose}>
           <Select
             value={value.purpose}
             onChange={(v) => set("purpose", v)}
@@ -196,35 +199,35 @@ export function JourneyForm({
           />
         </Field>
 
-        <Field label="Urgency">
+        <Field label={t.app.urgency}>
           <Select
             value={value.urgency}
             onChange={(v) => set("urgency", v)}
             options={[
-              { value: "flexible", label: "Flexible — can wait" },
-              { value: "deadline", label: "Has a deadline" },
-              { value: "leave_now", label: "Cannot wait" },
+              { value: "flexible", label: t.urgency.flexible },
+              { value: "deadline", label: t.urgency.deadline },
+              { value: "leave_now", label: t.urgency.leave_now },
             ]}
           />
         </Field>
 
-        <label className="flex cursor-pointer items-center gap-2.5 text-[12px] text-fg-muted">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[12px] text-fg-muted">
           <input
             type="checkbox"
             checked={value.canWorkRemotely}
             onChange={(e) => set("canWorkRemotely", e.target.checked)}
-            className="accent-signal-500"
+            className="h-4 w-4 accent-signal-500"
           />
-          This could be done remotely
+          {t.app.canWorkRemotely}
         </label>
       </section>
 
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-lg bg-signal-500 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="min-h-12 w-full rounded-lg bg-signal-500 px-4 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "Planning…" : "Plan this journey"}
+        {busy ? t.app.planning : t.app.plan}
       </button>
     </form>
   );

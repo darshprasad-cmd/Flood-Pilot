@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { LOCALES, LOCALE_ORDER } from "@/lib/i18n/locales";
 import { AGENT_REGISTRY } from "@/lib/agents/base";
 import { DELHI_CREDITS } from "@/lib/cities/delhi";
 import { DELHI_HOTSPOTS } from "@/lib/cities/delhi/hotspots";
@@ -312,6 +314,46 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* ══ Languages ═══════════════════════════════════════════════════ */}
+      <Section id="languages" eyebrow="Seven languages">
+        <h2 className="max-w-3xl text-2xl font-semibold tracking-tight sm:text-3xl">
+          A flood warning only in English is a warning that misses the people who
+          need it.
+        </h2>
+        <p className="mt-5 max-w-3xl text-[15px] leading-relaxed text-fg-muted">
+          Delhi&apos;s flood risk falls hardest on exactly the populations least
+          likely to be reading English — the migrant communities in the
+          trans-Yamuna colonies and the low-lying settlements along the
+          floodplain. FloodPilot&apos;s interface and every safety-critical
+          string are translated into the languages the city actually speaks.
+        </p>
+
+        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {LOCALE_ORDER.map((code) => {
+            const item = LOCALES[code];
+            return (
+              <div key={code} className="surface p-4" dir={item.dir}>
+                <p
+                  className="text-xl font-semibold tracking-tight"
+                  style={{ fontFamily: item.fontFamily }}
+                >
+                  {item.nativeName}
+                </p>
+                <p className="mt-1.5 text-[12px] text-fg-muted" dir="ltr">
+                  {item.name}
+                  <span className="ms-2 text-[10.5px] uppercase tracking-wider text-fg-faint">
+                    {item.script}
+                  </span>
+                </p>
+                <p className="mt-2 text-[11.5px] leading-snug text-fg-faint" dir="ltr">
+                  {item.role}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
       {/* ══ Government ══════════════════════════════════════════════════ */}
       <Section id="government" eyebrow="For flood control rooms" tinted>
         <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
@@ -501,12 +543,15 @@ function SiteHeader() {
           </a>
         </nav>
 
-        <Link
-          href="/app"
-          className="ml-auto rounded-lg bg-signal-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-signal-400"
-        >
-          Launch App
-        </Link>
+        <div className="ms-auto flex items-center gap-2">
+          <LanguageSwitcher compact />
+          <Link
+            href="/app"
+            className="rounded-lg bg-signal-500 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-signal-400"
+          >
+            Launch App
+          </Link>
+        </div>
       </div>
     </header>
   );

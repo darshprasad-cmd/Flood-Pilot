@@ -65,6 +65,14 @@ interface RiskMapProps {
   showDrains?: boolean;
   onSelectSegment?: (segmentId: string) => void;
   className?: string;
+  /**
+   * Change this whenever the map's container is resized or revealed.
+   *
+   * On mobile the map sits underneath full-screen panels, so Leaflet lays out
+   * against a container it cannot measure while hidden. Without a nudge it
+   * renders a quarter of the city into the corner.
+   */
+  resizeSignal?: string | number;
 }
 
 export default function RiskMap({
@@ -78,6 +86,7 @@ export default function RiskMap({
   showDrains = true,
   onSelectSegment,
   className = "",
+  resizeSignal,
 }: RiskMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -347,7 +356,38 @@ export default function RiskMap({
     }
   }, [ready, markers]);
 
-  return <div ref={containerRef} className={`h-full w-full ${className}`} />;
+  /* ── Container resized or revealed ──────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    // Two frames: one for the CSS change to land, one for layout to settle.
+    const timer = setTimeout(() => map.invalidateSize({ animate: false }), 60);
+    return () => clearTimeout(timer);
+  }, [ready, resizeSignal]);
+
+  /* ── Orientation and window resize ──────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+
+    const onResize = () => map.invalidateSize({ animate: false });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, [ready]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`h-full w-full ${className}`}
+      // Leaflet handles its own gestures; letting the browser also pan the page
+      // makes dragging the map on a phone feel broken.
+      style={{ touchAction: "none" }}
+    />
+  );
 }
 
 const MARKER_STYLES: Record<

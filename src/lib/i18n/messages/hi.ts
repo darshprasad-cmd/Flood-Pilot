@@ -1,0 +1,275 @@
+import type { Messages } from "./en";
+
+/**
+ * Hindi — Delhi's dominant official language.
+ *
+ * Terminology follows what the city actually says rather than dictionary
+ * Hindi: जलभराव for waterlogging (the term PWD, MCD and every news bulletin
+ * use), नाला for a trunk drain, and अंडरपास rather than a coined equivalent.
+ */
+export const hi: Messages = {
+  meta: {
+    languageName: "हिन्दी",
+    chooseLanguage: "भाषा चुनें",
+    translationNote:
+      "इंटरफ़ेस और सुरक्षा सलाह अनूदित हैं। मॉडल की विस्तृत व्याख्या फ़िलहाल केवल अंग्रेज़ी में है।",
+  },
+
+  common: {
+    launchApp: "ऐप खोलें",
+    close: "बंद करें",
+    why: "क्यों?",
+    loading: "लोड हो रहा है…",
+    live: "लाइव डेटा",
+    simulated: "अनुरूपित परिदृश्य",
+    restricted: "प्रतिबंधित",
+    signOut: "साइन आउट",
+    source: "स्रोत",
+    now: "अभी",
+    min: "मिनट",
+    hr: "घंटे",
+    cm: "सेमी",
+    km: "किमी",
+    people: "लोग",
+  },
+
+  nav: {
+    howItWorks: "कैसे काम करता है",
+    features: "विशेषताएँ",
+    architecture: "आर्किटेक्चर",
+    government: "सरकार",
+    roadmap: "आगे की योजना",
+  },
+
+  hero: {
+    eyebrow: "दिल्ली NCR · संस्करण 1",
+    titleLine1: "दिल्ली में बाढ़ चार अलग-अलग तरीक़ों से आती है।",
+    titleLine2: "मौसम ऐप उनमें से सिर्फ़ एक बताता है।",
+    lede:
+      "FloodPilot बताता है कि शहर में कहाँ जलभराव होगा, कितना गहरा और कब — फिर एक ख़ास व्यक्ति को, उसके ख़ास वाहन के हिसाब से बताता है कि करना क्या है।",
+    secondaryCta: "कैसे काम करता है",
+    noSignup: "कोई साइन-अप नहीं। लाइव ओपन डेटा पर चलता है।",
+  },
+
+  app: {
+    journey: "यात्रा",
+    from: "कहाँ से",
+    to: "कहाँ तक",
+    leavingIn: "निकलने में",
+    threeHours: "3 घंटे",
+    vehicle: "वाहन",
+    model: "मॉडल",
+    year: "वर्ष",
+    tyres: "टायर",
+    context: "संदर्भ",
+    purpose: "उद्देश्य",
+    urgency: "तात्कालिकता",
+    canWorkRemotely: "यह काम घर से हो सकता है",
+    plan: "यात्रा की योजना बनाएँ",
+    planning: "योजना बन रही है…",
+    thisJourney: "यह यात्रा",
+    cityConditions: "शहर की स्थिति",
+    recommendedAction: "सुझाई गई कार्रवाई",
+    alsoConsidered: "अन्य विकल्प भी देखे गए",
+    otherOptions: "दूसरे विकल्प",
+    estimatedJourney: "अनुमानित यात्रा",
+    actNow: "अभी करें",
+    controlRooms: "बाढ़ नियंत्रण कक्ष",
+    ifYouAreStuck: "अगर आप फँस जाएँ",
+    clearanceHint:
+      "सिर्फ़ ग्राउंड क्लीयरेंस से तय नहीं होता कि आप पानी पार कर पाएँगे — गाड़ी की बनावट अक्सर ज़्यादा मायने रखती है।",
+    tabPlan: "योजना",
+    tabMap: "नक़्शा",
+    tabBrief: "सारांश",
+  },
+
+  stats: {
+    roadsAtRisk: "जोखिम में सड़कें",
+    impassable: "अगम्य",
+    deepest: "सबसे गहरा",
+    peopleExposed: "प्रभावित लोग",
+    underpassesAtRisk: "जोखिम में अंडरपास",
+    hotspotsActive: "सक्रिय हॉटस्पॉट",
+    floodRisk: "बाढ़ जोखिम",
+    trunkDrains: "मुख्य नाले और यमुना",
+    highestRiskRoads: "सबसे ज़्यादा जोखिम वाली सड़कें",
+    worstFirst: "सबसे ख़राब पहले",
+    rightNow: "इस समय",
+  },
+
+  risk: {
+    safe: "सुरक्षित",
+    low: "कम",
+    moderate: "मध्यम",
+    high: "अधिक",
+    severe: "गंभीर",
+    critical: "अति गंभीर",
+  },
+
+  confidence: {
+    label: "विश्वास स्तर",
+    high: "उच्च",
+    moderate: "मध्यम",
+    low: "कम",
+  },
+
+  decision: {
+    leave_now: "अभी निकलें",
+    delay_departure: "निकलने में देरी करें",
+    use_metro: "मेट्रो से जाएँ",
+    use_cab: "कैब लें",
+    work_remotely: "घर से काम करें",
+    cancel_trip: "यात्रा रद्द करें",
+    move_vehicle: "अपना वाहन अभी हटाएँ",
+    shelter_in_place: "जहाँ हैं वहीं रुकें",
+  },
+
+  purpose: {
+    commute: "रोज़ का आना-जाना",
+    medical: "चिकित्सा",
+    school_run: "बच्चों को स्कूल",
+    work_critical: "ज़रूरी काम",
+    airport: "हवाई अड्डा",
+    leisure: "घूमना-फिरना",
+    delivery: "डिलीवरी या माल ढुलाई",
+  },
+
+  urgency: {
+    flexible: "लचीला — रुक सकते हैं",
+    deadline: "समय-सीमा है",
+    leave_now: "रुक नहीं सकते",
+  },
+
+  tyre: {
+    standard: "सामान्य",
+    wet_grip: "गीली पकड़",
+    all_terrain: "ऑल-टेरेन",
+    worn: "घिसे हुए",
+  },
+
+  vehicleCard: {
+    title: "वाहन की सहनशीलता",
+    safe: "सुरक्षित",
+    borderline: "सीमा पर",
+    unsafe: "असुरक्षित",
+    safeBlurb: "यह वाहन इसे आराम से पार कर लेगा।",
+    borderlineBlurb: "पार हो सकता है, पर कोई गुंजाइश नहीं बचती।",
+    unsafeBlurb: "यह वाहन इतना पानी पार नहीं कर सकता।",
+    waterOnRoute: "रास्ते में पानी",
+    safeWadingDepth: "सुरक्षित गहराई",
+    wadingLimit: "सुरक्षित सीमा",
+    airIntake: "एयर इनटेक",
+  },
+
+  route: {
+    fastest: "सबसे तेज़ रास्ता",
+    recommended: "सुझाया गया सुरक्षित रास्ता",
+    leastDangerous: "सबसे कम ख़तरनाक रास्ता",
+    whatMapsGives: "जो कोई मैप ऐप बताएगा",
+    whatWeRecommend: "जो FloodPilot सुझाता है",
+    bestAvailable: "सबसे बेहतर उपलब्ध — फिर भी सुरक्षित नहीं",
+    extraTime: "अतिरिक्त समय",
+    riskReduction: "जोखिम में कमी",
+    lessWater: "कम पानी",
+    underpassesAvoided: "बचे हुए अंडरपास",
+    safeRouteScore: "सुरक्षित मार्ग स्कोर",
+    peakRisk: "अधिकतम जोखिम",
+    underpasses: "अंडरपास",
+    segmentByStep: "हिस्सा-दर-हिस्सा",
+    roads: "सड़कें",
+    underpass: "अंडरपास",
+    impassable: "अगम्य",
+    sameRouteSafe:
+      "दोनों खोजों ने एक ही सड़कें चुनीं। अभी कोई और सुरक्षित विकल्प नहीं है जिसके लिए समय देना पड़े — यह अच्छी ख़बर है।",
+    sameRouteUnsafe:
+      "दोनों खोजों ने एक ही सड़कें चुनीं क्योंकि बाक़ी सब और ख़राब हैं। रास्ता बदलने से यह यात्रा ठीक नहीं होगी।",
+    noRoute: "इन दोनों जगहों के बीच कोई रास्ता नहीं बनाया जा सका।",
+  },
+
+  timeline: {
+    title: "पूर्वानुमान समयरेखा",
+    next12h: "अगले 12 घंटे",
+    recommendedDeparture: "सुझाया गया प्रस्थान",
+    windowCloses: "समय समाप्त हो रहा है",
+    noSafeWindow: "कोई सुरक्षित समय नहीं",
+    empty: "अगले बारह घंटों में कुछ होने का पूर्वानुमान नहीं है।",
+  },
+
+  explain: {
+    title: "यह सलाह क्यों?",
+    predictionTitle: "यह पूर्वानुमान क्यों?",
+    eyebrow: "व्याख्या योग्य AI",
+    factor: "कारण",
+    factors: "कारण",
+    basedOn: "पूर्वानुमान इन पर आधारित",
+    transparency: "पारदर्शिता",
+    notConnected: "पसंदीदा स्रोत जुड़े नहीं हैं",
+    agents: "इसे बनाने वाले एजेंट",
+    architecture: "AI आर्किटेक्चर",
+  },
+
+  report: {
+    eyebrow: "लाइव लर्निंग",
+    title: "यहाँ की स्थिति बताएँ",
+    flooded_road: "पानी भरा है",
+    road_clear: "साफ़ है",
+    drain_blockage: "नाला जाम है",
+    vehicle_stalled: "गाड़ी बंद हो गई",
+    depthPlaceholder: "गहराई सेमी में (वैकल्पिक)",
+    submit: "रिपोर्ट भेजें",
+    sending: "भेजा जा रहा है…",
+    thanks:
+      "धन्यवाद — इस सड़क का पूर्वानुमान अपडेट कर दिया गया है और आपकी रिपोर्ट पूर्वानुमान के मुक़ाबले दर्ज कर ली गई है।",
+    none:
+      "इस सड़क से अभी कोई रिपोर्ट नहीं है। रिपोर्ट से पूर्वानुमान तुरंत बदलता है और समय के साथ उसका असर घटता है।",
+  },
+
+  segment: {
+    floodProbability: "बाढ़ की संभावना",
+    peakDepth: "अधिकतम गहराई",
+    timeToFlood: "पानी भरने में समय",
+    recovery: "पानी उतरने में",
+    modelledDepth: "अनुमानित जल गहराई",
+    failureModes: "विफलता के तरीक़े",
+    whatGoesWrong: "यहाँ क्या ग़लत होने की आशंका है",
+    infrastructure: "बुनियादी ढाँचा",
+    whatIsHere: "यहाँ क्या है",
+    elevation: "ऊँचाई",
+    slope: "ढलान",
+    drainCapacity: "नाले की क्षमता",
+    floodplainExposure: "बाढ़ क्षेत्र में स्थिति",
+    basementParking: "बेसमेंट पार्किंग",
+    pumpStations: "पंपिंग स्टेशन",
+    floodHistory: "बाढ़ का इतिहास",
+    recordedEvents: "दर्ज घटनाएँ",
+    register: "जलभराव रजिस्टर",
+    standingWater: "8 सेमी — पानी जमा",
+    impassableAt: "30 सेमी — अगम्य",
+    peak: "अधिकतम",
+  },
+
+  gov: {
+    operations: "संचालन",
+    floodControl: "बाढ़ नियंत्रण",
+    deployment: "तैनाती",
+    highRiskRoads: "उच्च जोखिम सड़कें",
+    drainFailures: "नाला विफलता",
+    hotspots: "हॉटस्पॉट",
+    citizenReports: "नागरिक रिपोर्ट",
+    pumps: "पंप",
+    teams: "टीमें",
+    pumpsToDeploy: "तैनात करने योग्य पंप",
+    teamsToDeploy: "तैनात करने योग्य टीमें",
+    basements: "बेसमेंट",
+    gaugeReadings: "यमुना जल स्तर",
+    warning: "चेतावनी",
+    danger: "ख़तरा",
+    accessCode: "एक्सेस कोड",
+    signIn: "साइन इन",
+    checking: "जाँच हो रही है…",
+    codeNotRecognised: "एक्सेस कोड पहचाना नहीं गया।",
+    dashboardTitle: "बाढ़ संचालन डैशबोर्ड",
+    dashboardBlurb:
+      "इस दृश्य में संसाधन तैनाती और बुनियादी ढाँचे की विफलता के पूर्वानुमान हैं। यह सार्वजनिक ऐप का हिस्सा नहीं है।",
+  },
+};

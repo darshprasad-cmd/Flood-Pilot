@@ -36,6 +36,8 @@ import {
 } from "./route-vehicle";
 import { SegmentSheet } from "./SegmentSheet";
 import { JourneyForm, type JourneyFormState } from "./JourneyForm";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { useT } from "@/lib/i18n";
 import type { MapDrain, MapMarker, MapRoute, MapSegment } from "@/components/map/RiskMap";
 
 const RiskMap = dynamic(() => import("@/components/map/RiskMap"), {
@@ -149,6 +151,16 @@ interface BriefPayload {
 
 type Tab = "journey" | "city";
 
+/**
+ * Which surface a phone is showing.
+ *
+ * The desktop three-column layout does not survive a 390 px viewport — stacking
+ * it vertically buries the map between a long form and a long panel. On mobile
+ * the map is the base layer and the other two become full-screen surfaces over
+ * it, switched from a bottom bar within thumb reach.
+ */
+type MobilePane = "plan" | "map" | "brief";
+
 const DEFAULT_FORM: JourneyFormState = {
   origin: "dwarka",
   destination: "ito",
@@ -164,6 +176,8 @@ const DEFAULT_FORM: JourneyFormState = {
 /* -------------------------------------------------------------------------- */
 
 export default function AppShell() {
+  const t = useT();
+  const [mobilePane, setMobilePane] = useState<MobilePane>("map");
   const [cityData, setCityData] = useState<CityPayload | null>(null);
   const [predict, setPredict] = useState<PredictPayload | null>(null);
   const [brief, setBrief] = useState<BriefPayload | null>(null);
@@ -236,6 +250,9 @@ export default function AppShell() {
       if (!res.ok) throw new Error(String(res.status));
       setBrief((await res.json()) as BriefPayload);
       setTab("journey");
+      // On a phone, planning is an explicit act — show the result rather than
+      // leaving the user on the form wondering whether anything happened.
+      setMobilePane((pane) => (pane === "plan" ? "brief" : pane));
     } catch {
       setError("Journey planning failed. Try again.");
     } finally {
@@ -311,29 +328,33 @@ export default function AppShell() {
   const scenarioMeta = cityData?.scenarios.find((s) => s.id === scenario);
 
   return (
-    <div className="flex h-dvh flex-col bg-ink-950">
+    <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
       {/* Top bar */}
-      <header className="glass z-30 flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
-        <Link href="/" className="flex items-center gap-2.5">
+      <header className="glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+        <Link href="/" className="flex items-center gap-2">
           <Logo />
           <span className="text-sm font-semibold tracking-tight">FloodPilot</span>
         </Link>
 
-        <span className="hidden text-[11px] text-fg-faint sm:inline">
+        <span className="hidden text-[11px] text-fg-faint md:inline">
           {cityData?.city.name ?? "Delhi NCR"}
         </span>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ms-auto flex items-center gap-2">
           {scenarioMeta?.simulated ? (
-            <Badge tone="warn">Simulated scenario</Badge>
+            <Badge tone="warn" className="hidden sm:inline-flex">
+              {t.common.simulated}
+            </Badge>
           ) : (
-            <Badge tone="good">Live data</Badge>
+            <Badge tone="good" className="hidden sm:inline-flex">
+              {t.common.live}
+            </Badge>
           )}
 
           <select
             value={scenario}
             onChange={(e) => setScenario(e.target.value)}
-            className="rounded-lg border border-line bg-ink-850 px-2.5 py-1.5 text-[12px] text-fg outline-none focus:border-signal-500"
+            className="max-w-[9.5rem] rounded-lg border border-line bg-ink-850 px-2 py-1.5 text-[12px] text-fg outline-none focus:border-signal-500"
             aria-label="Rainfall scenario"
           >
             {cityData?.scenarios.map((s) => (
@@ -342,6 +363,8 @@ export default function AppShell() {
               </option>
             ))}
           </select>
+
+          <LanguageSwitcher compact />
         </div>
       </header>
 
@@ -351,9 +374,13 @@ export default function AppShell() {
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Left: journey controls */}
-        <aside className="shrink-0 overflow-y-auto border-line lg:w-[320px] lg:border-r">
+      <div className="relative flex min-h-0 flex-1 lg:flex-row">
+        {/* Left: journey controls. Full-screen overlay on mobile. */}
+        <aside
+          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[320px] lg:shrink-0 lg:border-e lg:border-line lg:bg-transparent ${
+            mobilePane === "plan" ? "block" : "hidden"
+          }`}
+        >
           {cityData ? (
             <JourneyForm
               nodes={cityData.nodes}
@@ -373,8 +400,8 @@ export default function AppShell() {
           )}
         </aside>
 
-        {/* Centre: map */}
-        <main className="relative min-h-[320px] flex-1">
+        {/* Centre: map. Always mounted — it is the base layer on mobile. */}
+        <main className="absolute inset-0 lg:static lg:min-h-[320px] lg:flex-1">
           {cityData && predict ? (
             <RiskMap
               center={cityData.city.center}
@@ -385,15 +412,18 @@ export default function AppShell() {
               markers={markers}
               selectedSegmentId={selectedSegmentId}
               showDrains={showDrains}
-              onSelectSegment={setSelectedSegmentId}
+              onSelectSegment={(id) => {
+                setSelectedSegmentId(id);
+              }}
+              resizeSignal={mobilePane}
             />
           ) : (
             <div className="grid-backdrop h-full w-full" />
           )}
 
           {/* Map legend and layer toggle */}
-          <div className="glass pointer-events-auto absolute bottom-4 left-4 z-20 rounded-xl px-3 py-2.5">
-            <p className="eyebrow mb-2">Flood risk</p>
+          <div className="glass pointer-events-auto absolute bottom-3 start-3 z-20 rounded-xl px-3 py-2.5 lg:bottom-4 lg:start-4">
+            <p className="eyebrow mb-2">{t.stats.floodRisk}</p>
             <div className="flex items-center gap-1">
               {["safe", "low", "moderate", "high", "severe", "critical"].map((level) => (
                 <span
@@ -405,38 +435,38 @@ export default function AppShell() {
               ))}
             </div>
             <div className="mt-1 flex justify-between text-[9px] text-fg-faint">
-              <span>Safe</span>
-              <span>Critical</span>
+              <span>{t.risk.safe}</span>
+              <span>{t.risk.critical}</span>
             </div>
-            <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[11px] text-fg-muted">
+            <label className="mt-2.5 flex min-h-11 cursor-pointer items-center gap-2 text-[11px] text-fg-muted">
               <input
                 type="checkbox"
                 checked={showDrains}
                 onChange={(e) => setShowDrains(e.target.checked)}
-                className="accent-signal-500"
+                className="h-4 w-4 accent-signal-500"
               />
-              Trunk drains &amp; Yamuna
+              {t.stats.trunkDrains}
             </label>
           </div>
 
           {/* City status strip */}
           {predict ? (
-            <div className="glass pointer-events-none absolute right-4 top-4 z-20 rounded-xl px-4 py-3">
-              <div className="flex gap-6">
+            <div className="glass pointer-events-none absolute end-3 top-3 z-20 rounded-xl px-3 py-2.5 lg:end-4 lg:top-4 lg:px-4 lg:py-3">
+              <div className="flex gap-4 lg:gap-6">
                 <Metric
-                  label="Roads at risk"
+                  label={t.stats.roadsAtRisk}
                   value={predict.summary.segmentsAtRisk}
                   size="sm"
                   tone={predict.summary.segmentsAtRisk > 0 ? "risk" : "safe"}
                 />
                 <Metric
-                  label="Deepest"
+                  label={t.stats.deepest}
                   value={predict.summary.peakDepthCm.toFixed(0)}
                   unit="cm"
                   size="sm"
                 />
                 <Metric
-                  label="People exposed"
+                  label={t.stats.peopleExposed}
                   value={compact(predict.summary.peopleExposed)}
                   size="sm"
                 />
@@ -445,21 +475,25 @@ export default function AppShell() {
           ) : null}
         </main>
 
-        {/* Right: intelligence */}
-        <aside className="shrink-0 overflow-y-auto border-line lg:w-[400px] lg:border-l">
-          <div className="flex gap-1 border-b border-line px-3 py-2">
-            {(["journey", "city"] as Tab[]).map((t) => (
+        {/* Right: intelligence. Full-screen overlay on mobile. */}
+        <aside
+          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[400px] lg:shrink-0 lg:border-s lg:border-line lg:bg-transparent ${
+            mobilePane === "brief" ? "block" : "hidden"
+          }`}
+        >
+          <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-ink-950/95 px-3 py-2 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none">
+            {(["journey", "city"] as Tab[]).map((id) => (
               <button
-                key={t}
+                key={id}
                 type="button"
-                onClick={() => setTab(t)}
-                className={`rounded-lg px-3 py-1.5 text-[12px] font-medium capitalize transition-colors ${
-                  tab === t
+                onClick={() => setTab(id)}
+                className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                  tab === id
                     ? "bg-ink-800 text-fg"
                     : "text-fg-faint hover:text-fg-muted"
                 }`}
               >
-                {t === "journey" ? "This journey" : "City conditions"}
+                {id === "journey" ? t.app.thisJourney : t.app.cityConditions}
               </button>
             ))}
           </div>
@@ -527,6 +561,30 @@ export default function AppShell() {
         </aside>
       </div>
 
+      {/* Mobile pane switcher — thumb-reachable, above the home indicator. */}
+      <nav className="glass safe-bottom z-30 flex shrink-0 border-t lg:hidden">
+        {(
+          [
+            ["plan", t.app.tabPlan, <PlanIcon key="p" />],
+            ["map", t.app.tabMap, <MapIcon key="m" />],
+            ["brief", t.app.tabBrief, <BriefIcon key="b" />],
+          ] as [MobilePane, string, React.ReactNode][]
+        ).map(([id, label, icon]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobilePane(id)}
+            aria-current={mobilePane === id ? "page" : undefined}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+              mobilePane === id ? "text-signal-300" : "text-fg-faint"
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </nav>
+
       {selectedSegment ? (
         <SegmentSheet
           segmentId={selectedSegment.id}
@@ -542,6 +600,54 @@ export default function AppShell() {
   );
 }
 
+function PlanIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path
+        d="M4 5h12M4 10h12M4 15h7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MapIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path
+        d="M2.5 5.5 7.5 3.5v11l-5 2v-11ZM7.5 3.5l5 2v11l-5-2M12.5 5.5l5-2v11l-5 2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BriefIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <rect
+        x="3.5"
+        y="3"
+        width="13"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 
 function CityConditions({
@@ -551,6 +657,7 @@ function CityConditions({
   predict: PredictPayload;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
   const worst = [...predict.segments]
     .sort((a, b) => b.state.peakDepthCm - a.state.peakDepthCm)
     .slice(0, 12);
@@ -559,28 +666,31 @@ function CityConditions({
     <>
       <Card>
         <CardHeader
-          eyebrow="Right now"
-          title="City conditions"
+          eyebrow={t.stats.rightNow}
+          title={t.app.cityConditions}
           right={
             predict.degraded ? <Badge tone="warn">Degraded inputs</Badge> : null
           }
         />
         <div className="grid grid-cols-2 gap-4 px-4 py-4">
           <Metric
-            label="Roads at risk"
+            label={t.stats.roadsAtRisk}
             value={predict.summary.segmentsAtRisk}
             tone={predict.summary.segmentsAtRisk > 0 ? "risk" : "safe"}
           />
           <Metric
-            label="Impassable"
+            label={t.stats.impassable}
             value={predict.summary.segmentsImpassable}
             tone={predict.summary.segmentsImpassable > 0 ? "risk" : "safe"}
           />
           <Metric
-            label="Underpasses at risk"
+            label={t.stats.underpassesAtRisk}
             value={predict.summary.underpassesAtRisk}
           />
-          <Metric label="Hotspots active" value={predict.summary.hotspotsActive} />
+          <Metric
+            label={t.stats.hotspotsActive}
+            value={predict.summary.hotspotsActive}
+          />
         </div>
         <div className="border-t border-line px-4 py-3">
           <ConfidenceMeter
@@ -599,7 +709,7 @@ function CityConditions({
 
       {predict.gauges.length > 0 ? (
         <Card>
-          <CardHeader eyebrow="River" title="Gauge readings" />
+          <CardHeader eyebrow="Yamuna" title={t.gov.gaugeReadings} />
           <ul className="divide-y divide-line">
             {predict.gauges.map((gauge) => (
               <li key={gauge.station.name} className="px-4 py-3">
@@ -622,7 +732,10 @@ function CityConditions({
       ) : null}
 
       <Card>
-        <CardHeader eyebrow="Worst first" title="Highest risk roads" />
+        <CardHeader
+          eyebrow={t.stats.worstFirst}
+          title={t.stats.highestRiskRoads}
+        />
         <ul className="divide-y divide-line">
           {worst.map((segment) => (
             <li key={segment.id}>

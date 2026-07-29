@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "enrich:osm": "node scripts/enrich-osm.mjs"
+    "enrich:osm": "node scripts/enrich-osm.mjs",
+    "make:icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

@@ -58,10 +58,81 @@ html {
 body {
   background: var(--color-ink-950);
   color: var(--color-fg);
-  font-family: var(--font-sans);
+  /* Set per-locale by the i18n provider so each script gets a font that can
+     actually render it — Devanagari, Gurmukhi, Bengali or Nastaliq. */
+  font-family: var(--font-locale, var(--font-sans));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
+  /* Stop iOS rubber-banding the whole page behind a fixed app shell. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Nastaliq needs vertical room; its default line height clips descenders. */
+:root:lang(ur) body,
+[dir="rtl"] body {
+  line-height: 1.9;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Touch and mobile                                                   */
+/* ------------------------------------------------------------------ */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/**
+ * iOS Safari zooms the viewport whenever a focused text control is under 16px,
+ * which on this layout throws the map and both panels off screen. The fix is
+ * the font size, not `maximum-scale=1` — disabling pinch-zoom to work around it
+ * would trade a layout bug for an accessibility one.
+ */
+@media (max-width: 1023px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Comfortable hit targets on touch devices without inflating the pointer UI. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  select,
+  a[data-touch] {
+    min-height: 44px;
+  }
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility safe-x {
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Right-to-left (Urdu)                                               */
+/* ------------------------------------------------------------------ */
+
+/* Geography does not mirror. Forcing the map back to LTR keeps Leaflet's
+   controls, tooltips and pane transforms correct under an RTL document. */
+[dir="rtl"] .leaflet-container {
+  direction: ltr;
+}
+
+[dir="rtl"] .numeric {
+  direction: ltr;
+  unicode-bidi: embed;
+  display: inline-block;
 }
 
 ::selection {
