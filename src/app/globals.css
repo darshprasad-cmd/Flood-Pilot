@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/*  FloodPilot design tokens                                           */
+/*  Dark, instrument-panel aesthetic. Colour carries meaning only.     */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  /* Surfaces — near-black with a cool cast, like a control room */
+  --color-ink-950: #05070b;
+  --color-ink-900: #090d15;
+  --color-ink-850: #0e131e;
+  --color-ink-800: #141a28;
+  --color-ink-750: #1a2233;
+  --color-ink-700: #222c41;
+
+  /* Lines */
+  --color-line: #1c2434;
+  --color-line-bright: #2a3549;
+
+  /* Text */
+  --color-fg: #e9eef7;
+  --color-fg-muted: #97a4bb;
+  --color-fg-faint: #5f6c85;
+
+  /* Brand — signal blue, reads as "system", not "weather" */
+  --color-signal-300: #7cc4ff;
+  --color-signal-400: #4aa8ff;
+  --color-signal-500: #2b8cf0;
+  --color-signal-600: #1d6fd0;
+  --color-aqua-400: #35d6d6;
+
+  /* Risk ramp — the only saturated colours in the product */
+  --color-risk-safe: #2fbf6f;
+  --color-risk-low: #8fc93a;
+  --color-risk-moderate: #e8b62c;
+  --color-risk-high: #f08a3c;
+  --color-risk-severe: #e8503a;
+  --color-risk-critical: #b32b1d;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-card: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-signal-500) 40%, transparent);
+}
+
+/* Scrollbars — thin, unobtrusive */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-750);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-700);
+  background-clip: content-box;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Primitives                                                         */
+/* ------------------------------------------------------------------ */
+
+@utility surface {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-ink-850) 92%, transparent),
+    color-mix(in srgb, var(--color-ink-900) 96%, transparent)
+  );
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+@utility surface-raised {
+  background: linear-gradient(180deg, var(--color-ink-800), var(--color-ink-850));
+  border: 1px solid var(--color-line-bright);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.03) inset,
+    0 18px 40px -24px rgb(0 0 0 / 0.9);
+}
+
+@utility glass {
+  background: color-mix(in srgb, var(--color-ink-900) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-line-bright) 80%, transparent);
+}
+
+/* Small uppercase label used above every metric in the product */
+@utility eyebrow {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-fg-faint);
+}
+
+@utility numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Faint grid that gives the dark surfaces some depth */
+@utility grid-backdrop {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Motion                                                             */
+/* ------------------------------------------------------------------ */
+
+@keyframes fp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fp-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fp-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.7;
+  }
+  70% {
+    box-shadow: 0 0 0 12px transparent;
+    opacity: 0;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    opacity: 0;
+  }
+}
+
+@keyframes fp-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes fp-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+
+@utility animate-rise {
+  animation: fp-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-fade {
+  animation: fp-fade 0.4s ease both;
+}
+
+@utility animate-pulse-ring {
+  animation: fp-pulse-ring 2s ease-out infinite;
+}
+
+/* Loading shimmer for pending predictions */
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+}
+@utility shimmer-bar {
+  position: absolute;
+  inset-block: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.06),
+    transparent
+  );
+  animation: fp-sweep 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Leaflet overrides — the basemap must recede behind our data        */
+/* ------------------------------------------------------------------ */
+
+.leaflet-container {
+  background: var(--color-ink-950) !important;
+  font-family: var(--font-sans) !important;
+  outline: none;
+}
+
+.leaflet-tile-pane {
+  filter: saturate(0.35) brightness(0.62) contrast(1.06);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--color-line-bright) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.9) !important;
+}
+
+.leaflet-control-zoom a {
+  background: var(--color-ink-850) !important;
+  color: var(--color-fg-muted) !important;
+  border-color: var(--color-line) !important;
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  font-size: 16px !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--color-ink-800) !important;
+  color: var(--color-fg) !important;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-ink-950) 78%, transparent) !important;
+  color: var(--color-fg-faint) !important;
+  font-size: 9px !important;
+  padding: 1px 6px !important;
+  border-radius: 6px 0 0 0;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-fg-muted) !important;
+}
+
+.fp-flow-line {
+  stroke-dasharray: 10 14;
+  animation: fp-dash 1s linear infinite;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-ink-850) !important;
+  color: var(--color-fg) !important;
+  border: 1px solid var(--color-line-bright);
+  box-shadow: 0 20px 44px -26px rgb(0 0 0 / 0.95) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.leaflet-popup-close-button {
+  color: var(--color-fg-faint) !important;
+}
