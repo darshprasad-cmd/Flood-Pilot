@@ -53,7 +53,6 @@ interface CityPayload {
 }
 
 type StepId =
-  | "welcome"
   | "home"
   | "work"
   | "commute"
@@ -88,26 +87,24 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const { profile, replace } = useProfile();
   const [city, setCity] = useState<CityPayload | null>(null);
   const [draft, setDraft] = useState<UserProfile>(profile);
-  const [stepId, setStepId] = useState<StepId>("welcome");
+  const [stepId, setStepId] = useState<StepId>("home");
   const [query, setQuery] = useState("");
 
   /**
-   * Arriving from the landing page, where the wordmark has already been
-   * clicked.
+   * There is no welcome screen here any more.
    *
-   * Showing a second identical launch screen would make people press the same
-   * name twice to get anywhere. Instead the first paint keeps the India camera
-   * — so the flight down to Delhi still happens and the click still *reads* as
-   * a zoom — and the first question opens on its own a beat later.
+   * The landing page already is one — the same wordmark, the same tagline, the
+   * same lede — so a second one meant pressing the same name twice to get
+   * anywhere. Arriving now goes straight to the first question.
+   *
+   * The flight survives it: the first paint holds the India camera so the
+   * click still *reads* as a zoom into the city, and the real camera takes
+   * over a beat later. Somebody who opens /app directly, from a bookmark or
+   * the home-screen icon, gets the same arrival.
    */
-  const handedOver = useRef(
-    typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).has("begin"),
-  );
-
+  const [arrived, setArrived] = useState(false);
   useEffect(() => {
-    if (!handedOver.current) return;
-    const timer = setTimeout(() => setStepId("home"), 260);
+    const timer = setTimeout(() => setArrived(true), 260);
     return () => clearTimeout(timer);
   }, []);
 
@@ -155,7 +152,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     const ownsVehicle =
       COMMUTE_MODES.find((m) => m.id === draft.commuteMode)?.ownsVehicle ?? false;
     return [
-      "welcome",
       "home",
       "work",
       "commute",
@@ -168,7 +164,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   }, [draft.commuteMode]);
 
   const index = Math.max(0, steps.indexOf(stepId));
-  const questionCount = steps.length - 2; // welcome and building are not questions
+  const questionCount = steps.length - 1; // "building" is not a question
 
   const go = useCallback(
     (delta: number) => {
@@ -191,9 +187,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   /* ── Camera choreography ─────────────────────────────────────────────── */
   const camera = useMemo<Camera>(() => {
     const cityCentre = city?.city.center ?? { lat: 28.62, lng: 77.21 };
+    // Hold the country for one beat so the arrival is a flight rather than a
+    // cut. Everything else is driven by which question is on screen.
+    if (!arrived) return INDIA;
     switch (stepId) {
-      case "welcome":
-        return INDIA;
       case "home":
         // The first real flight: the whole country down to one metropolitan
         // area. Long, because this is the moment the product says what it is.
@@ -219,10 +216,12 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       case "building":
         return { center: home?.at ?? cityCentre, zoom: 14.4, duration: 2.6 };
     }
-  }, [stepId, city, home, work]);
+  }, [arrived, stepId, city, home, work]);
 
   const pins = useMemo<CinematicPin[]>(() => {
-    if (stepId === "welcome") {
+    // During the opening beat the country is in frame, so the only useful pin
+    // is the one saying where we are about to go.
+    if (!arrived) {
       const centre = city?.city.center ?? { lat: 28.62, lng: 77.21 };
       return [{ id: "delhi", at: centre, kind: "focus", label: t.onboarding.placeCity }];
     }
@@ -235,15 +234,14 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       if (node) out.push({ id, at: node.at, kind: "frequent" });
     }
     return out;
-  }, [stepId, home, work, city, draft.frequentNodeIds, nodeById, t.onboarding.placeCity]);
+  }, [arrived, stepId, home, work, city, draft.frequentNodeIds, nodeById, t.onboarding.placeCity]);
 
   /* ── Where the camera says we are ────────────────────────────────────── */
-  const place =
-    stepId === "welcome"
-      ? t.onboarding.placeIndia
-      : home
-        ? home.ward
-        : (city?.city.name ?? t.onboarding.placeCity);
+  const place = !arrived
+    ? t.onboarding.placeIndia
+    : home
+      ? home.ward
+      : (city?.city.name ?? t.onboarding.placeCity);
 
   const nodes = city?.nodes ?? [];
 
@@ -266,15 +264,9 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
       {/* ── Chrome ───────────────────────────────────────────────────────── */}
       <header className="safe-top absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4">
-        {/* The launch screen carries the wordmark at full size in the middle
-            of the display, so repeating it up here would just be two of them. */}
         <div className="flex items-center gap-2.5">
-          {stepId === "welcome" ? null : (
-            <>
-              <Mark size={22} className="text-fg-muted" />
-              <Wordmark size={14} />
-            </>
-          )}
+          <Mark size={22} className="text-fg-muted" />
+          <Wordmark size={14} />
           <p
             key={place}
             className="animate-fade text-[10.5px] uppercase tracking-[0.14em] text-fg-faint"
@@ -298,32 +290,16 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       </header>
 
       {/* ── The conversation ─────────────────────────────────────────────── */}
-      {/* The launch screen owns the middle of the display; every question
-          after it sits down in the corner so the map stays the subject. */}
-      <div
-        className={
-          stepId === "welcome"
-            ? "absolute inset-0 z-20 flex items-center justify-center p-4"
-            : "safe-bottom absolute inset-x-0 bottom-0 z-20 flex justify-center p-4 sm:justify-start sm:p-8"
-        }
-      >
-        <div
-          key={stepId}
-          className={`animate-arrive w-full ${
-            stepId === "welcome" ? "max-w-[32rem]" : "max-w-[27rem]"
-          }`}
-        >
-          {stepId === "welcome" ? (
-            // Nothing during the hand-over beat, so the wordmark does not
-            // flash up a second time on its way past.
-            handedOver.current ? null : <Welcome onBegin={() => go(1)} />
-          ) : stepId === "building" ? (
+      {/* Down in the corner, so the map stays the subject throughout. */}
+      <div className="safe-bottom absolute inset-x-0 bottom-0 z-20 flex justify-center p-4 sm:justify-start sm:p-8">
+        <div key={stepId} className="animate-arrive w-full max-w-[27rem]">
+          {stepId === "building" ? (
             <Building />
           ) : (
             <QuestionCard
               index={index}
               total={questionCount}
-              onBack={index > 1 ? () => go(-1) : undefined}
+              onBack={index > 0 ? () => go(-1) : undefined}
             >
               {stepId === "home" ? (
                 <PlacePicker
@@ -443,75 +419,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
 /* -------------------------------------------------------------------------- */
 
-/**
- * The launch screen.
- *
- * The name *is* the button. A small "Begin" tucked under a paragraph in a card
- * in the corner is something people have to go looking for, and nobody hunts
- * for the entrance to a product they have not decided to want yet — so the
- * whole lockup is one enormous target, centred, and tapping anywhere on it
- * flies the camera into Delhi and opens the first question.
- *
- * The filled pill stays even though the entire block is clickable. Making a
- * thing tappable is not the same as telling somebody it is tappable.
- */
-function Welcome({ onBegin }: { onBegin: () => void }) {
-  const t = useT();
-  return (
-    <div className="flex flex-col items-center text-center">
-      <button
-        type="button"
-        onClick={onBegin}
-        aria-label={t.onboarding.welcomeCta}
-        className="group flex w-full flex-col items-center rounded-[26px] px-5 py-6 transition-transform duration-500 ease-[var(--ease-spring)] hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-signal-500 focus-visible:outline-none active:scale-[0.99] sm:px-8 sm:py-8"
-      >
-        <span className="relative mb-5 flex items-center justify-center">
-          <span
-            className="absolute h-24 w-24 rounded-full blur-2xl transition-opacity duration-500 group-hover:opacity-90"
-            style={{ background: "radial-gradient(circle, rgba(43,140,240,0.5), transparent 70%)", opacity: 0.6 }}
-            aria-hidden
-          />
-          <Mark size={58} className="relative text-fg-muted" />
-        </span>
-
-        <Wordmark size={54} className="drop-shadow-[0_2px_20px_rgba(5,7,11,0.9)]" />
-
-        <span className="mt-4 max-w-[22rem] text-balance text-[17px] font-medium leading-snug text-fg sm:text-[19px]">
-          {t.onboarding.welcomeTitle}
-        </span>
-
-        <span className="mt-3 max-w-[24rem] text-balance text-[13px] leading-relaxed text-fg-muted">
-          {t.onboarding.welcomeBody}
-        </span>
-
-        <span className="mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-signal-500 px-7 text-[15px] font-semibold text-white shadow-lg shadow-signal-600/30 transition-colors group-hover:bg-signal-400">
-          {t.onboarding.welcomeCta}
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="transition-transform duration-300 group-hover:translate-x-0.5"
-            aria-hidden
-          >
-            <path
-              d="M3 8h9m0 0L8.5 4.5M12 8l-3.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </button>
-
-      <p className="mt-1 px-6 text-[11.5px] leading-relaxed text-fg-faint">
-        {t.onboarding.welcomeNote}
-      </p>
-    </div>
-  );
-}
-
 function Building() {
   const t = useT();
   return (
@@ -558,9 +465,9 @@ function QuestionCard({
             <span
               key={i}
               className={`h-[3px] flex-1 rounded-full transition-colors duration-500 ${
-                i < index - 1
+                i < index
                   ? "bg-signal-500"
-                  : i === index - 1
+                  : i === index
                     ? "bg-signal-500/45"
                     : "bg-ink-750"
               }`}
@@ -578,6 +485,15 @@ function QuestionCard({
         ) : null}
       </div>
       <div className="p-5">{children}</div>
+
+      {/* The reassurance that used to sit under the launch screen's button.
+          It belongs on the first question now — that is where somebody first
+          has to actually tell us something. */}
+      {index === 0 ? (
+        <p className="border-t border-line px-5 py-3 text-[11px] leading-relaxed text-fg-faint">
+          {t.onboarding.welcomeNote}
+        </p>
+      ) : null}
     </div>
   );
 }

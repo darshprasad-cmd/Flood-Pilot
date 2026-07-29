@@ -146,7 +146,7 @@ export default function LandingExperience() {
       <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
         <div className="animate-arrive flex w-full max-w-[32rem] flex-col items-center text-center">
           <Link
-            href="/app?begin=1"
+            href="/app"
             data-touch
             className="group pointer-events-auto flex w-full flex-col items-center rounded-[26px] px-5 py-6 transition-transform duration-500 ease-[var(--ease-spring)] hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-signal-500 focus-visible:outline-none active:scale-[0.99] sm:px-8 sm:py-8"
           >
