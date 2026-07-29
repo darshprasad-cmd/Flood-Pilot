@@ -1,5 +1,6 @@
 import {
   clamp,
+  distanceToPolylineM,
   hashRange,
   haversineM,
   invLerp,
@@ -7,7 +8,15 @@ import {
   polylineLengthM,
 } from "@/lib/core/math";
 import type { LatLng } from "@/lib/core/types";
+import type {
+  CityPlugin,
+  ControlRoom,
+  GaugeStation,
+  HotspotRecord,
+  MajorDrain,
+} from "@/lib/cities/types";
 import type { ElevationField } from "@/lib/signals/types";
+import type { SeedSegment } from "./seed-types";
 import type {
   CityMeta,
   Drain,
@@ -19,7 +28,6 @@ import type {
   RoadSegment,
   SegmentState,
 } from "./types";
-import type { SeedNode, SeedSegment } from "./seed/bengaluru";
 
 /**
  * Straight-line junction-to-junction distance understates how far you actually
@@ -28,25 +36,18 @@ import type { SeedNode, SeedSegment } from "./seed/bengaluru";
  */
 const DETOUR_FACTOR = 1.15;
 
-/** Years of flood history the seed covers, used to turn events into a rate. */
+/** Years of flood history the seeds cover, used to turn events into a rate. */
 const HISTORY_WINDOW_YEARS = 3.5;
-
-export interface CitySeed {
-  city: CityMeta;
-  nodes: SeedNode[];
-  segments: SeedSegment[];
-  metro: MetroStation[];
-  monthlyNormalMm: number[];
-  weatherGrid: LatLng[];
-}
 
 /**
  * The city as a graph.
  *
- * Static structure is built once and cached; the dynamic layer (`SegmentState`)
- * is written by the intelligence engine on every tick and read by routing. That
- * split is what lets an expensive road network be reused across requests while
- * the risk numbers stay fresh.
+ * Static structure is built once from a `CityPlugin` and cached; the dynamic
+ * layer (`SegmentState`) is written by the intelligence engine on every tick and
+ * read by routing. That split is what lets an expensive road network be reused
+ * across requests while the risk numbers stay fresh — and it is what keeps the
+ * engine city-agnostic, because everything Delhi-specific arrives as plugin data
+ * rather than as a branch in the model.
  */
 export class CityGraph {
   readonly city: CityMeta;
@@ -55,18 +56,28 @@ export class CityGraph {
   readonly metro: MetroStation[];
   readonly monthlyNormalMm: number[];
   readonly weatherGrid: LatLng[];
+  readonly majorDrains: MajorDrain[];
+  readonly gauges: GaugeStation[];
+  readonly controlRooms: ControlRoom[];
+  readonly floodCharacter: string;
+  readonly plugin: CityPlugin;
 
   /** Undirected adjacency: every segment is traversable both ways. */
   private readonly adjacency: Map<string, GraphEdgeRef[]> = new Map();
   private readonly states: Map<string, SegmentState> = new Map();
 
-  constructor(seed: CitySeed) {
-    this.city = seed.city;
-    this.metro = seed.metro;
-    this.monthlyNormalMm = seed.monthlyNormalMm;
-    this.weatherGrid = seed.weatherGrid;
+  constructor(plugin: CityPlugin, hotspots: HotspotRecord[] = plugin.hotspots) {
+    this.plugin = plugin;
+    this.city = plugin.meta;
+    this.metro = plugin.metro;
+    this.monthlyNormalMm = plugin.monthlyNormalMm;
+    this.weatherGrid = plugin.weatherGrid;
+    this.majorDrains = plugin.majorDrains;
+    this.gauges = plugin.gauges;
+    this.controlRooms = plugin.controlRooms;
+    this.floodCharacter = plugin.floodCharacter;
 
-    for (const n of seed.nodes) {
+    for (const n of plugin.nodes) {
       this.nodes.set(n.id, {
         id: n.id,
         name: n.name,
@@ -77,8 +88,20 @@ export class CityGraph {
       });
     }
 
-    for (const s of seed.segments) {
-      const segment = this.buildSegment(s);
+    // Index hotspots by segment so a road can look up its own register entry.
+    const hotspotBySegment = new Map<string, HotspotRecord>();
+    for (const hs of hotspots) {
+      for (const segmentId of hs.segmentIds) {
+        const existing = hotspotBySegment.get(segmentId);
+        // A segment can appear in several entries; keep the worst.
+        if (!existing || severityRank(hs.severity) > severityRank(existing.severity)) {
+          hotspotBySegment.set(segmentId, hs);
+        }
+      }
+    }
+
+    for (const s of plugin.segments) {
+      const segment = this.buildSegment(s, hotspotBySegment.get(s.id) ?? null);
       if (!segment) continue;
       this.segments.set(segment.id, segment);
 
@@ -93,7 +116,10 @@ export class CityGraph {
     else this.adjacency.set(nodeId, [edge]);
   }
 
-  private buildSegment(seed: SeedSegment): RoadSegment | null {
+  private buildSegment(
+    seed: SeedSegment,
+    hotspot: HotspotRecord | null,
+  ): RoadSegment | null {
     const from = this.nodes.get(seed.from);
     const to = this.nodes.get(seed.to);
     if (!from || !to) {
@@ -127,7 +153,13 @@ export class CityGraph {
     const imperviousIndex = seed.impervious ?? CLASS_IMPERVIOUS[seed.roadClass];
     const drainQuality = seed.drainQuality ?? 0.6;
 
-    const drains = generateDrains(seed.id, geometry, lengthM, drainQuality, seed.roadClass);
+    const drains = generateDrains(
+      seed.id,
+      geometry,
+      lengthM,
+      drainQuality,
+      seed.roadClass,
+    );
     const drainDensityPerKm = drains.length / (lengthM / 1000);
     const nearestDrainM = drains.length
       ? Math.min(...drains.map((d) => haversineM(mid, d.at)))
@@ -144,9 +176,12 @@ export class CityGraph {
       (1 - meanSilting) * (0.45 + 0.55 * densityFactor),
     );
 
+    const majorDrain = this.resolveMajorDrain(seed, mid);
+    const floodplainExposure = seed.floodplain ?? this.derivedFloodplain(mid);
+
     const history = (seed.history ?? []).map((h) => ({
       ...h,
-      source: "floodpilot/seed:reported-hotspots",
+      source: "floodpilot/seed:reported-events",
     }));
 
     return {
@@ -170,20 +205,93 @@ export class CityGraph {
       distToDrainM: nearestDrainM,
       drainDensityPerKm,
       drainCapacityIndex,
+      floodplainExposure,
+      majorDrain,
+      basementParking: seed.basementParking ?? 0,
+      pumpStations: seed.pumpStations ?? 0,
+      constructionObstruction: seed.constructionObstruction ?? false,
+      hotspot: hotspot
+        ? {
+            id: hotspot.id,
+            name: hotspot.name,
+            kind: hotspot.kind,
+            severity: hotspot.severity,
+            typicalDepthCm: hotspot.typicalDepthCm,
+            typicalDurationHr: hotspot.typicalDurationHr,
+            source: hotspot.source,
+            note: hotspot.note,
+          }
+        : null,
       floodHistory: history,
       floodFrequencyPerYear: history.length / HISTORY_WINDOW_YEARS,
       populationExposure: seed.exposure ?? defaultExposure(seed.roadClass, lengthM),
       criticalFacilities: seed.facilities ?? [],
       provenance: {
-        source: "floodpilot/seed:bengaluru",
+        source: `floodpilot/seed:${this.city.id}`,
         kind: "seeded",
         fetchedAt: new Date(0).toISOString(),
-        reliability: history.length > 0 ? 0.65 : 0.5,
+        reliability: hotspot?.verified ? 0.75 : history.length > 0 ? 0.65 : 0.5,
         live: false,
-        note:
-          "Junctions and corridors are real; geometry is a straight-line approximation and flood history is an illustrative seed of reported hotspots, not an official municipal record.",
+        note: hotspot
+          ? `Junctions and corridors are real; geometry is a straight-line approximation. This stretch appears in the recurring-waterlogging register (${hotspot.source}).`
+          : "Junctions and corridors are real; geometry is a straight-line approximation and flood history is an illustrative seed, not an official municipal record.",
       },
     };
+  }
+
+  /**
+   * Which trunk drain governs this road, and how close it runs.
+   *
+   * An explicit seed assignment wins; otherwise the nearest major drain within
+   * 1.5 km is taken, because beyond that the drain's surcharge behaviour stops
+   * being the thing that decides whether the road floods.
+   */
+  private resolveMajorDrain(
+    seed: SeedSegment,
+    mid: LatLng,
+  ): RoadSegment["majorDrain"] {
+    let drain: MajorDrain | undefined;
+    let distanceM: number;
+
+    if (seed.majorDrainId) {
+      drain = this.majorDrains.find((d) => d.id === seed.majorDrainId);
+      distanceM =
+        seed.majorDrainDistanceM ??
+        (drain ? distanceToPolylineM(mid, drain.path) : Infinity);
+    } else {
+      let bestDistance = Infinity;
+      for (const candidate of this.majorDrains) {
+        const d = distanceToPolylineM(mid, candidate.path);
+        if (d < bestDistance) {
+          bestDistance = d;
+          drain = candidate;
+        }
+      }
+      distanceM = bestDistance;
+      if (bestDistance > 1500) return null;
+    }
+
+    if (!drain || !Number.isFinite(distanceM)) return null;
+
+    return {
+      id: drain.id,
+      name: drain.name,
+      kind: drain.kind,
+      distanceM,
+      siltationIndex: drain.siltationIndex,
+      capacityCumecs: drain.designCapacityCumecs,
+    };
+  }
+
+  /**
+   * Floodplain exposure derived from proximity to the river, when the seed does
+   * not state it. Falls to zero by about 2 km from the bank.
+   */
+  private derivedFloodplain(mid: LatLng): number {
+    const river = this.majorDrains.find((d) => d.kind === "river");
+    if (!river) return 0;
+    const d = distanceToPolylineM(mid, river.path);
+    return clamp(1 - d / 2000);
   }
 
   /** Low, flat ground collects water from everywhere around it. */
@@ -227,7 +335,7 @@ export class CityGraph {
         best = node;
       }
     }
-    // The graph always has nodes; the seed throws at construction if it does not.
+    // The graph always has nodes; the plugin throws at construction if it does not.
     return best as RoadNode;
   }
 
@@ -260,9 +368,7 @@ export class CityGraph {
     let applied = 0;
 
     for (const node of this.nodes.values()) {
-      const sample = field.samples.find(
-        (s) => haversineM(s.at, node.at) < 60,
-      );
+      const sample = field.samples.find((s) => haversineM(s.at, node.at) < 60);
       if (!sample) continue;
       node.elevationM = sample.elevationM;
       applied++;
@@ -281,7 +387,7 @@ export class CityGraph {
       seg.slopePct = (rise / Math.max(1, seg.lengthM / DETOUR_FACTOR)) * 100;
       seg.provenance = {
         ...seg.provenance,
-        note: `${seg.provenance.note} Junction heights refined by the Copernicus digital elevation model.`,
+        note: `${seg.provenance.note} Junction heights refined by a digital elevation model.`,
       };
     }
 
@@ -292,6 +398,10 @@ export class CityGraph {
 /* -------------------------------------------------------------------------- */
 /*  Derived attribute helpers                                                 */
 /* -------------------------------------------------------------------------- */
+
+function severityRank(severity: string): number {
+  return severity === "chronic" ? 3 : severity === "recurring" ? 2 : 1;
+}
 
 const CLASS_IMPERVIOUS: Record<RoadClass, number> = {
   highway: 0.86,
@@ -326,10 +436,11 @@ function defaultExposure(roadClass: RoadClass, lengthM: number): number {
 /**
  * Synthesise the drainage network along a segment.
  *
- * Real inlet inventories exist inside municipal GIS but are not public, so we
- * derive a plausible network from the corridor's known drainage performance.
- * Everything is seeded from the segment id, so a road's drains never change
- * between requests.
+ * Municipal inlet inventories exist inside PWD and MCD GIS but are not published,
+ * so we derive a plausible network from the corridor's known drainage
+ * performance. The OSM adapter refines this with real culverts, drains and
+ * waterways where they are mapped. Everything is seeded from the segment id, so
+ * a road's drains never change between requests.
  */
 function generateDrains(
   segmentId: string,
@@ -360,7 +471,9 @@ function generateDrains(
       type: CLASS_DRAIN_TYPE[roadClass],
       designCapacityLps: Math.round(hashRange(`${seedKey}:cap`, 140, 420)),
       siltingIndex,
-      lastCleanedDaysAgo: Math.round(siltingIndex * hashRange(`${seedKey}:clean`, 60, 400)),
+      lastCleanedDaysAgo: Math.round(
+        siltingIndex * hashRange(`${seedKey}:clean`, 60, 400),
+      ),
     });
   }
 

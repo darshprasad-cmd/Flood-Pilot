@@ -71,6 +71,42 @@ export function polylineLengthM(points: LatLng[]): number {
   return total;
 }
 
+/**
+ * Shortest distance in metres from a point to a polyline.
+ *
+ * Used to work out how close a road runs to a trunk drain or a river, which in
+ * Delhi is often a better predictor of waterlogging than the rainfall itself.
+ */
+export function distanceToPolylineM(point: LatLng, path: LatLng[]): number {
+  if (path.length === 0) return Infinity;
+  if (path.length === 1) return haversineM(point, path[0]);
+
+  let best = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    best = Math.min(best, distanceToSegmentM(point, path[i - 1], path[i]));
+  }
+  return best;
+}
+
+/** Distance from a point to a line segment, in metres. */
+export function distanceToSegmentM(p: LatLng, a: LatLng, b: LatLng): number {
+  // Project into a local metre-scaled plane. Over the few kilometres these
+  // comparisons span, the error from ignoring curvature is negligible.
+  const mPerDegLat = 111_320;
+  const mPerDegLng = 111_320 * Math.cos((p.lat * Math.PI) / 180);
+
+  const px = (p.lng - a.lng) * mPerDegLng;
+  const py = (p.lat - a.lat) * mPerDegLat;
+  const bx = (b.lng - a.lng) * mPerDegLng;
+  const by = (b.lat - a.lat) * mPerDegLat;
+
+  const lenSq = bx * bx + by * by;
+  if (lenSq === 0) return Math.hypot(px, py);
+
+  const t = Math.max(0, Math.min(1, (px * bx + py * by) / lenSq));
+  return Math.hypot(px - t * bx, py - t * by);
+}
+
 export function midpoint(points: LatLng[]): LatLng {
   if (points.length === 0) return { lat: 0, lng: 0 };
   return {

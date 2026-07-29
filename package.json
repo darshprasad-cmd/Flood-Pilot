@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "seed:elevation": "node scripts/seed-elevation.mjs"
+    "enrich:osm": "node scripts/enrich-osm.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

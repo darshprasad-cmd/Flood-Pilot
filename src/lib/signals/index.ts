@@ -1,26 +1,30 @@
 import { interpolateIDW } from "@/lib/core/math";
-import { localMonthIndex } from "@/lib/core/time";
+import { localMonthIndex, tzOffsetMinutes } from "@/lib/core/time";
 import type { LatLng, SignalProvenance } from "@/lib/core/types";
 import type { CityGraph } from "@/lib/graph/city-graph";
-import { tzOffsetMinutes } from "@/lib/core/time";
 import { fetchAntecedentField } from "./antecedent";
+import {
+  resolveRainfall,
+  resolveRiver,
+  resolveTraffic,
+} from "./providers";
 import { buildReportField } from "./reports";
 import type { ScenarioId } from "./scenarios";
-import { fetchRiverField } from "./terrain";
-import { buildTrafficField } from "./traffic";
 import type {
   AntecedentCell,
   SignalBundle,
+  SourceUsage,
   WeatherCell,
 } from "./types";
-import { fetchWeatherField } from "./weather";
 
 /**
  * Gather every input the intelligence engine needs for one city, for one tick.
  *
- * Upstream calls run concurrently — a slow river-discharge API must not delay a
- * rainfall-driven prediction — and none of them can fail the request; a failure
- * degrades confidence instead.
+ * Signals are resolved through the city's declared source preferences — for
+ * Delhi that means IMD before Open-Meteo, CWC before the global flood model, and
+ * Google before the internal traffic model. Upstream calls run concurrently, and
+ * none of them can fail the request: a failure degrades confidence and is
+ * recorded in `sources` so the product can say what it actually used.
  */
 export async function collectSignals(
   graph: CityGraph,
@@ -28,40 +32,106 @@ export async function collectSignals(
   now: Date = new Date(),
 ): Promise<SignalBundle> {
   const grid = graph.weatherGrid;
+  const plugin = graph.plugin;
   const monthIndex = localMonthIndex(now, graph.city.timezone);
   const monthlyNormal = graph.monthlyNormalMm[monthIndex] ?? 60;
 
-  // River reaches are sparse; three probes across the city is plenty and keeps
-  // the payload small.
-  const riverProbes: LatLng[] = [grid[0], grid[Math.floor(grid.length / 2)], grid[grid.length - 1]];
+  // River reaches are sparse; three probes across the city is plenty.
+  const riverProbes: LatLng[] = [
+    grid[0],
+    grid[Math.floor(grid.length / 2)],
+    grid[grid.length - 1],
+  ];
 
-  const [weather, antecedent, river, reports] = await Promise.all([
-    fetchWeatherField(grid, scenario, now),
+  const [rainfall, antecedent, reports] = await Promise.all([
+    resolveRainfall(grid, plugin.sources.rainfall, scenario, now),
     fetchAntecedentField(grid, monthlyNormal, scenario, now),
-    fetchRiverField(riverProbes, now),
     buildReportField(graph.city.id, now),
   ]);
 
+  const meanWetness =
+    antecedent.cells.reduce((s, c) => s + c.wetnessIndex, 0) /
+    Math.max(1, antecedent.cells.length);
+
+  const weather = rainfall.data.field;
   const peakRain = Math.max(0, ...weather.cells.map((c) => c.peakIntensityMmHr));
 
-  const traffic = buildTrafficField(
-    graph.allSegments().map((s) => ({
-      id: s.id,
-      roadClass: s.roadClass,
-      lanes: s.lanes,
-      speedLimitKph: s.speedLimitKph,
-    })),
-    now,
-    peakRain,
-    tzOffsetMinutes(graph.city.timezone, now),
-  );
+  const [river, traffic] = await Promise.all([
+    resolveRiver(
+      plugin.gauges,
+      riverProbes,
+      plugin.sources.river,
+      meanWetness,
+      now,
+    ),
+    resolveTraffic(
+      graph.allSegments(),
+      plugin.sources.traffic,
+      now,
+      peakRain,
+      tzOffsetMinutes(graph.city.timezone, now),
+    ),
+  ]);
 
   const provenances: SignalProvenance[] = [
     weather.provenance,
     antecedent.provenance,
-    river.provenance,
-    traffic.provenance,
+    river.data.field.provenance,
+    traffic.data.provenance,
     reports.provenance,
+  ];
+
+  const sources: SourceUsage[] = [
+    {
+      signal: "rainfall",
+      provider: rainfall.usedProvider,
+      providerName: providerName(rainfall.usedProvider),
+      used: true,
+      detail: weather.provenance.note ?? "",
+    },
+    ...rainfall.skipped.map((s) => ({
+      signal: "rainfall" as const,
+      provider: s.id,
+      providerName: providerName(s.id),
+      used: false,
+      detail: s.reason,
+    })),
+    {
+      signal: "river",
+      provider: river.usedProvider,
+      providerName: providerName(river.usedProvider),
+      used: true,
+      detail:
+        river.data.gauges[0]?.note ?? river.data.field.provenance.note ?? "",
+    },
+    ...river.skipped.map((s) => ({
+      signal: "river" as const,
+      provider: s.id,
+      providerName: providerName(s.id),
+      used: false,
+      detail: s.reason,
+    })),
+    {
+      signal: "traffic",
+      provider: traffic.usedProvider,
+      providerName: providerName(traffic.usedProvider),
+      used: true,
+      detail: traffic.data.provenance.note ?? "",
+    },
+    ...traffic.skipped.map((s) => ({
+      signal: "traffic" as const,
+      provider: s.id,
+      providerName: providerName(s.id),
+      used: false,
+      detail: s.reason,
+    })),
+    {
+      signal: "reports",
+      provider: "floodpilot",
+      providerName: "Citizen reports",
+      used: true,
+      detail: reports.provenance.note ?? "",
+    },
   ];
 
   return {
@@ -70,12 +140,34 @@ export async function collectSignals(
     weather,
     antecedent,
     elevation: null,
-    river,
-    traffic,
+    river: river.data.field,
+    traffic: traffic.data,
     reports,
+    gauges: river.data.gauges,
+    floodplainPressure: river.data.floodplainPressure,
+    warnings: rainfall.data.warnings,
     provenances,
+    sources,
     degraded: provenances.some((p) => !p.live && p.kind !== "seeded"),
   };
+}
+
+const PROVIDER_NAMES: Record<string, string> = {
+  imd: "India Meteorological Department",
+  cwc: "Central Water Commission",
+  "google-traffic": "Google Maps traffic",
+  "google-elevation": "Google Elevation API",
+  "google-directions": "Google Directions",
+  "osm-overpass": "OpenStreetMap",
+  "open-meteo": "Open-Meteo",
+  "open-meteo-flood": "Open-Meteo global flood model",
+  "open-meteo-elevation": "Copernicus DEM via Open-Meteo",
+  "internal-model": "FloodPilot internal model",
+  seed: "FloodPilot seeded dataset",
+};
+
+export function providerName(id: string): string {
+  return PROVIDER_NAMES[id] ?? id;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -85,9 +177,9 @@ export async function collectSignals(
 /**
  * Sample the rainfall field at a point.
  *
- * The whole curve is interpolated, not just the headline number, because
- * "when does this road flood" depends on the shape of the storm at *that* road,
- * not at the city centroid.
+ * The whole curve is interpolated, not just the headline number, because when a
+ * road floods depends on the shape of the storm at *that* road. Delhi routinely
+ * records 100 mm in Najafgarh and 5 mm in Mayur Vihar in the same three hours.
  */
 export function sampleWeather(bundle: SignalBundle, at: LatLng): WeatherCell {
   const cells = bundle.weather.cells.map((value) => ({ at: value.at, value }));
@@ -145,8 +237,8 @@ export function sampleAntecedent(
   };
 }
 
-/** River influence, weighted by how close the nearest modelled reach is. */
-export function sampleRiver(bundle: SignalBundle, at: LatLng): number {
+/** Modelled river influence where no gauge covers a location. */
+export function sampleRiverDischarge(bundle: SignalBundle, at: LatLng): number {
   const available = bundle.river.cells.filter((c) => c.available);
   if (available.length === 0) return 0;
   return interpolateIDW(

@@ -41,6 +41,15 @@ export interface FeatureDef {
   unit: string;
   min: number;
   max: number;
+  /**
+   * The normalised value treated as "unremarkable" for this feature.
+   *
+   * Attribution is measured against this baseline, so a driver reads as "this
+   * road is lower than most" rather than "this road has an elevation". It plays
+   * exactly the role of a SHAP base value, which is why the explanation layer
+   * does not change when a gradient-boosted model replaces the heuristic.
+   */
+  neutral: number;
   higherIsWorse: boolean;
   description: string;
 }

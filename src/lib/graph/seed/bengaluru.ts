@@ -1,4 +1,5 @@
-import type { CityMeta, MetroStation, RoadClass } from "../types";
+import type { SeedNode, SeedSegment } from "../seed-types";
+import type { CityMeta, MetroStation } from "../types";
 
 /**
  * Bengaluru road network seed.
@@ -57,17 +58,6 @@ export const BENGALURU_WEATHER_GRID = [
 /* -------------------------------------------------------------------------- */
 /*  Junctions                                                                 */
 /* -------------------------------------------------------------------------- */
-
-export interface SeedNode {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  /** Metres above sea level, seeded from published topography. */
-  elevationM: number;
-  ward: string;
-  metro?: { station: string; line: string; walkM: number };
-}
 
 export const BENGALURU_NODES: SeedNode[] = [
   // North
@@ -148,37 +138,6 @@ export const BENGALURU_METRO: MetroStation[] = BENGALURU_NODES.filter(
 /* -------------------------------------------------------------------------- */
 /*  Segments                                                                  */
 /* -------------------------------------------------------------------------- */
-
-export interface SeedFloodRecord {
-  date: string;
-  depthCm: number;
-  durationHr: number;
-}
-
-export interface SeedSegment {
-  id: string;
-  name: string;
-  corridor: string;
-  from: string;
-  to: string;
-  roadClass: RoadClass;
-  lanes: number;
-  speedLimitKph: number;
-  /** Real road bends, traced with a couple of intermediate points. */
-  waypoints?: { lat: number; lng: number }[];
-  /** Road dips under a rail line or flyover — water has nowhere to go. */
-  underpass?: boolean;
-  /** 0..1 override for how much upstream area drains onto this road. */
-  catchment?: number;
-  /** 0..1 — how well the storm drain network here actually performs. */
-  drainQuality?: number;
-  /** 0..1 sealed surface fraction of the contributing catchment. */
-  impervious?: number;
-  history?: SeedFloodRecord[];
-  /** People directly affected when this segment goes under. */
-  exposure?: number;
-  facilities?: string[];
-}
 
 const HIGH_EXPOSURE = 24_000;
 

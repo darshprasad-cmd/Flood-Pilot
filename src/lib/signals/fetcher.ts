@@ -13,6 +13,8 @@ export interface FetchOptions {
   revalidate: number;
   timeoutMs?: number;
   label: string;
+  /** Extra headers — credentials for the government feeds that need them. */
+  headers?: Record<string, string>;
 }
 
 export interface FetchResult<T> {
@@ -24,7 +26,7 @@ export interface FetchResult<T> {
 
 export async function fetchJson<T>(
   url: string,
-  { revalidate, timeoutMs = 6000, label }: FetchOptions,
+  { revalidate, timeoutMs = 6000, label, headers }: FetchOptions,
 ): Promise<FetchResult<T>> {
   const started = Date.now();
   const controller = new AbortController();
@@ -34,7 +36,7 @@ export async function fetchJson<T>(
     const res = await fetch(url, {
       signal: controller.signal,
       next: { revalidate },
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...headers },
     });
 
     if (!res.ok) {

@@ -126,6 +126,15 @@ export interface ReportField {
   bySegment: Record<string, ReportSignalReading>;
 }
 
+/** Which provider actually supplied a signal, for the source-transparency panel. */
+export interface SourceUsage {
+  signal: "rainfall" | "river" | "traffic" | "elevation" | "drainage" | "reports";
+  provider: string;
+  providerName: string;
+  used: boolean;
+  detail: string;
+}
+
 /** Everything a hazard model is given for one tick over one city. */
 export interface SignalBundle {
   cityId: string;
@@ -136,7 +145,54 @@ export interface SignalBundle {
   river: RiverField;
   traffic: TrafficField;
   reports: ReportField;
+
+  /* River state, resolved from the city's gauge network. */
+  gauges: RiverGaugeReadingLike[];
+  /**
+   * 0..1 — how hard the river is pressing on the city's drainage outfalls.
+   * In Delhi this is the difference between rain that drains away and rain that
+   * has nowhere to go.
+   */
+  floodplainPressure: number;
+
+  /** Colour-coded meteorological warnings in force, where the feed supplies them. */
+  warnings: WeatherWarning[];
+
   provenances: SignalProvenance[];
+  /** Which provider answered for each signal. */
+  sources: SourceUsage[];
   /** True when any signal fell back to simulation. */
   degraded: boolean;
+}
+
+export interface WeatherWarning {
+  level: "green" | "yellow" | "orange" | "red";
+  headline: string;
+  validFrom: string;
+  validTo: string;
+  district: string;
+}
+
+/** Structural mirror of a resolved gauge reading, kept here to avoid a cycle. */
+export interface RiverGaugeReadingLike {
+  station: {
+    id: string;
+    name: string;
+    river: string;
+    warningLevelM: number;
+    dangerLevelM: number;
+    evacuationLevelM: number;
+    operator: string;
+    drivenBy?: string;
+    upstreamLagHr?: number;
+  };
+  levelM: number;
+  trendM24h: number;
+  status: "normal" | "approaching_warning" | "warning" | "danger" | "evacuation";
+  floodplainPressure: number;
+  forecastPeakM: number | null;
+  forecastPeakInHr: number | null;
+  live: boolean;
+  note: string;
+  source: string;
 }
