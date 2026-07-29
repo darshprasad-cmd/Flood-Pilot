@@ -42,6 +42,7 @@ export const hi: Messages = {
     detailed: "विस्तार से",
     showWorking: "पूरा हिसाब दिखाएँ",
     hideWorking: "हिसाब छिपाएँ",
+    offline: "ऑफ़लाइन — इस डिवाइस पर सहेजे गए पिछले हालात दिखाए जा रहे हैं।",
   },
 
   nav: {
@@ -121,6 +122,39 @@ export const hi: Messages = {
     bus: "बस",
     auto: "ऑटो या कैब",
     walk: "पैदल",
+  },
+
+  alerts: {
+    title: "अलर्ट",
+    none: "अभी ध्यान देने लायक़ कुछ नहीं है।",
+    enableNotifications: "ऐप बंद हो तब भी मुझे बताएँ",
+    notificationsOn: "यह ऐप बंद होने पर भी आपको बता दिया जाएगा।",
+    notificationsBlocked:
+      "आपके ब्राउज़र की सेटिंग में इस साइट के नोटिफ़िकेशन बंद हैं।",
+
+    departureTitle: "निकलने का मौक़ा ख़त्म हो रहा है",
+    departureBody:
+      "{clock} तक निकल जाइए। उसके बाद यह सफ़र सुरक्षित नहीं रहेगा — अभी से क़रीब {min} मिनट में।",
+    noWindowTitle: "आज निकलने का कोई सुरक्षित समय नहीं",
+    noWindowBody:
+      "अगले बारह घंटों में कोई ऐसा समय नहीं है जब यह सफ़र सुरक्षित हो। मेट्रो से जाइए, या मत जाइए।",
+    routeTitle: "आपका रास्ता बंद है",
+    routeBody:
+      "आपके सबसे सुरक्षित रास्ते की {count} सड़कों पर इतना पानी है कि यह गाड़ी पार नहीं कर पाएगी।",
+    homeRisingTitle: "आपके पास पानी बढ़ रहा है",
+    homeRisingBody: "{place} में अनुमानित {depth} सेमी पानी है और अभी बढ़ रहा है।",
+    homeFloodingTitle: "आपके इलाक़े में पानी भर रहा है",
+    homeFloodingBody:
+      "{place} में अनुमानित {depth} सेमी पानी है। जिस पानी की तह न दिखे, उसमें गाड़ी मत उतारिए।",
+    moveCarTitle: "अपनी गाड़ी अभी हटाइए",
+    moveCarBody:
+      "{place} में अनुमानित {depth} सेमी पानी है। ऊपर सड़क भरने से बहुत पहले बेसमेंट का रैंप भर जाता है — जब तक मौक़ा है, हटा लीजिए।",
+    placeTitle: "{place} ख़तरे में है",
+    placeBody: "अनुमानित {depth} सेमी पानी।",
+    riverWarningTitle: "यमुना चेतावनी स्तर से ऊपर",
+    riverDangerTitle: "यमुना ख़तरे के निशान से ऊपर",
+    riverBody:
+      "{river} {level} मी पर — {status}। ख़तरे का निशान {danger} मी है। बाढ़ क्षेत्र छोड़ दीजिए।",
   },
 
   dashboard: {

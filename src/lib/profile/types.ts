@@ -48,6 +48,13 @@ export interface UserProfile {
   basementParking: boolean;
   proactiveAlerts: boolean;
   emergencyAlerts: boolean;
+  /**
+   * Alerts already shown to this person.
+   *
+   * Ids carry their severity, so an alert that escalates gets a new id and
+   * surfaces again rather than staying quietly marked as read.
+   */
+  seenAlertIds: string[];
   detail: DetailMode;
   /** ISO timestamp, or null if onboarding has not been finished. */
   completedAt: string | null;
@@ -65,6 +72,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   basementParking: false,
   proactiveAlerts: true,
   emergencyAlerts: true,
+  seenAlertIds: [],
   detail: "simple",
   completedAt: null,
 };

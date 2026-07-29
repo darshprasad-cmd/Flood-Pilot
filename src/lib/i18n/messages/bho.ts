@@ -47,6 +47,7 @@ export const bho: Messages = {
     detailed: "विस्तार से",
     showWorking: "हिसाब देखाईं",
     hideWorking: "हिसाब छिपाईं",
+    offline: "ऑफलाइन — एह फोन में सहेजल पहिलका हालत देखावल जात बा।",
   },
 
   nav: {
@@ -126,6 +127,39 @@ export const bho: Messages = {
     bus: "बस",
     auto: "ऑटो या कैब",
     walk: "पैदल",
+  },
+
+  alerts: {
+    title: "चेतावनी",
+    none: "अबहीं रउआ के धियान देवे लायक कुछ नइखे।",
+    enableNotifications: "ऐप बंद रहे तबहूँ हमरा के बताईं",
+    notificationsOn: "ई ऐप बंद रही तबहूँ रउआ के बतावल जाई।",
+    notificationsBlocked:
+      "रउआ के ब्राउजर सेटिंग में एह साइट खातिर सूचना रोकल बा।",
+
+    departureTitle: "निकले के मौका बंद होत बा",
+    departureBody:
+      "{clock} ले निकल जाईं। ओकरा बाद ई यात्रा सुरक्षित ना रह जाई — अबहीं से करीब {min} मिनट बा।",
+    noWindowTitle: "आजु निकले के कवनो सुरक्षित समय नइखे",
+    noWindowBody:
+      "अगिला बारह घंटा में कवनो अइसन समय नइखे जवना में ई यात्रा सुरक्षित रहे। मेट्रो से जाईं, ना त मत जाईं।",
+    routeTitle: "रउआ के रस्ता बंद बा",
+    routeBody:
+      "रउआ के सबसे सुरक्षित रस्ता के {count} सड़क पर एतना गहिर पानी बा कि ई गाड़ी पार ना कर सकी।",
+    homeRisingTitle: "रउआ के लगे पानी बढ़त बा",
+    homeRisingBody: "{place} में अनुमान {depth} सेमी बा आ अबहीं बढ़ते जात बा।",
+    homeFloodingTitle: "रउआ के इलाका में पानी भरत बा",
+    homeFloodingBody:
+      "{place} में अनुमान {depth} सेमी बा। जवना जमल पानी के तल ना लउके, ओहमें गाड़ी मत ले जाईं।",
+    moveCarTitle: "आपन गाड़ी अबहीं हटाईं",
+    moveCarBody:
+      "{place} में अनुमान {depth} सेमी बा। ऊपर के सड़क डूबे से बहुत पहिलहीं बेसमेंट रैंप भर जाला — जब ले मौका बा तब ले हटा लीं।",
+    placeTitle: "{place} खतरा में बा",
+    placeBody: "अनुमान {depth} सेमी बा।",
+    riverWarningTitle: "जमुना चेतावनी स्तर से ऊपर",
+    riverDangerTitle: "जमुना खतरा स्तर से ऊपर",
+    riverBody:
+      "{river} {level} मीटर पर बा — {status}। खतरा स्तर {danger} मीटर बा। बाढ़ वाला इलाका छोड़ि दीं।",
   },
 
   dashboard: {

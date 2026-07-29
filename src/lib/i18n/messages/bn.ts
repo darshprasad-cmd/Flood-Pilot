@@ -42,6 +42,7 @@ export const bn: Messages = {
     detailed: "বিস্তারিত",
     showWorking: "হিসেব দেখান",
     hideWorking: "হিসেব লুকান",
+    offline: "অফলাইন — এই ডিভাইসে সংরক্ষিত শেষ পরিস্থিতি দেখানো হচ্ছে।",
   },
 
   nav: {
@@ -121,6 +122,39 @@ export const bn: Messages = {
     bus: "বাস",
     auto: "অটো বা ক্যাব",
     walk: "হেঁটে",
+  },
+
+  alerts: {
+    title: "সতর্কতা",
+    none: "এখন আপনার নজর দেওয়ার মতো কিছু নেই।",
+    enableNotifications: "অ্যাপ বন্ধ থাকলেও আমাকে জানান",
+    notificationsOn: "এই অ্যাপ বন্ধ থাকলেও আপনাকে জানানো হবে।",
+    notificationsBlocked:
+      "আপনার ব্রাউজারের সেটিংসে এই সাইটের নোটিফিকেশন বন্ধ করা আছে।",
+
+    departureTitle: "বেরোনোর সময় ফুরিয়ে আসছে",
+    departureBody:
+      "{clock}-এর মধ্যে বেরোন। তারপর এই যাত্রা আর নিরাপদ থাকবে না — এখন থেকে প্রায় {min} মিনিট।",
+    noWindowTitle: "আজ নিরাপদে বেরোনোর কোনও সময় নেই",
+    noWindowBody:
+      "আগামী বারো ঘণ্টায় এমন কোনও সময় নেই যখন এই যাত্রা নিরাপদ। মেট্রোয় যান, বা না যাওয়াই ভালো।",
+    routeTitle: "আপনার পথ বন্ধ",
+    routeBody:
+      "আপনার সবচেয়ে নিরাপদ পথের {count}টি রাস্তায় এত জল যে এই গাড়ি পেরোতে পারবে না।",
+    homeRisingTitle: "আপনার কাছে জল জমছে",
+    homeRisingBody: "{place}-এ অনুমিত জল {depth} সেমি, এখনও বাড়ছে।",
+    homeFloodingTitle: "আপনার এলাকায় জল জমে যাচ্ছে",
+    homeFloodingBody:
+      "{place}-এ অনুমিত জল {depth} সেমি। যে জমা জলের তলা দেখা যাচ্ছে না, তার মধ্যে দিয়ে গাড়ি চালাবেন না।",
+    moveCarTitle: "এখনই গাড়ি সরান",
+    moveCarBody:
+      "{place}-এ অনুমিত জল {depth} সেমি। উপরের রাস্তা ডোবার অনেক আগেই বেসমেন্টের ঢাল বেয়ে জল ভরে যায় — সময় থাকতে সরিয়ে নিন।",
+    placeTitle: "{place} ঝুঁকিতে",
+    placeBody: "অনুমিত জল {depth} সেমি।",
+    riverWarningTitle: "যমুনা সতর্কতা স্তরের উপরে",
+    riverDangerTitle: "যমুনা বিপদসীমার উপরে",
+    riverBody:
+      "{river}-এ জল {level} মিটার — {status}। বিপদসীমা {danger} মিটার। প্লাবনভূমি ছেড়ে চলে যান।",
   },
 
   dashboard: {

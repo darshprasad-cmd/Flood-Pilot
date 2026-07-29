@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Card,
@@ -45,8 +45,18 @@ import {
 } from "@/components/map/LayersControl";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Lockup } from "@/components/brand/Logo";
+import { AlertBell, AlertSheet } from "./AlertCenter";
+import {
+  OfflineBanner,
+  ServiceWorkerRegistrar,
+  UpdatedStamp,
+  useOnlineState,
+} from "./OfflineGuard";
 import { useT } from "@/lib/i18n";
 import { useProfile } from "@/lib/profile";
+import { buildWatchAlerts } from "@/lib/alerts/watch";
+import { notifyNew } from "@/lib/alerts/notify";
+import { warrantsNotification } from "@/lib/alerts/types";
 import type { MapDrain, MapMarker, MapRoute, MapSegment } from "@/components/map/RiskMap";
 
 const RiskMap = dynamic(() => import("@/components/map/RiskMap"), {
@@ -140,6 +150,7 @@ interface PredictPayload {
   computedAt: string;
   degraded: boolean;
 }
+
 
 interface BriefPayload {
   comparison: ComparisonDto | null;
@@ -238,6 +249,16 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
   const [layers, setLayers] = useState<LayerState>(defaultLayerState);
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const online = useOnlineState();
+  /**
+   * Alerts already pushed to the operating system this session.
+   *
+   * Deliberately a ref rather than part of the stored profile: a notification
+   * is a moment, not a record. After a reload, water that is still rising is
+   * worth saying again.
+   */
+  const notifiedRef = useRef<Set<string>>(new Set());
 
   /* ── Static city data ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -399,6 +420,50 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
     return out;
   }, [cityData, form.origin, form.destination, community, layers]);
 
+  /* ── What is worth interrupting this person for ──────────────────────── */
+
+  const watchAlerts = useMemo(
+    () =>
+      buildWatchAlerts({
+        profile,
+        nodes: cityData?.nodes ?? [],
+        segments: predict?.segments ?? [],
+        brief,
+        gauges: predict?.gauges ?? [],
+        t,
+      }),
+    [profile, cityData, predict, brief, t],
+  );
+
+  const unread = watchAlerts.filter((a) => !profile.seenAlertIds.includes(a.id));
+
+  // Push the serious ones out to the operating system as they appear.
+  useEffect(() => {
+    const already = [...notifiedRef.current];
+    notifyNew(watchAlerts, already);
+    for (const alert of watchAlerts) {
+      if (warrantsNotification(alert)) notifiedRef.current.add(alert.id);
+    }
+  }, [watchAlerts]);
+
+  /**
+   * Keep the picture current while the app sits open.
+   *
+   * Without this the alert layer only ever sees the conditions that existed
+   * when the tab was opened, which is precisely wrong for a product whose
+   * whole claim is that it tells you before the window shuts.
+   */
+  useEffect(() => {
+    const timer = setInterval(
+      () => {
+        void loadPrediction();
+        void loadCommunity();
+      },
+      5 * 60_000,
+    );
+    return () => clearInterval(timer);
+  }, [loadPrediction, loadCommunity]);
+
   const selectedSegment = predict?.segments.find((s) => s.id === selectedSegmentId);
 
   /* ── Render ──────────────────────────────────────────────────────────── */
@@ -430,8 +495,9 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
           <Lockup size={14} />
         </Link>
 
-        <span className="hidden text-[11px] text-fg-faint md:inline">
+        <span className="hidden items-baseline gap-2 text-[11px] text-fg-faint md:flex">
           {cityData?.city.name ?? "Delhi NCR"}
+          <UpdatedStamp computedAt={predict?.computedAt} />
         </span>
 
         <div className="ms-auto flex items-center gap-2">
@@ -465,9 +531,28 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
             detailedLabel={t.common.detailed}
           />
 
+          <AlertBell
+            unread={unread.length}
+            highest={unread[0]?.severity ?? null}
+            label={t.alerts.title}
+            onOpen={() => {
+              setAlertsOpen(true);
+              // Seen is seen. Anything that later escalates gets a new id and
+              // comes back unread on its own.
+              update({
+                seenAlertIds: Array.from(
+                  new Set([...profile.seenAlertIds, ...watchAlerts.map((a) => a.id)]),
+                ).slice(-40),
+              });
+            }}
+          />
+
           <LanguageSwitcher compact />
         </div>
       </header>
+
+      <ServiceWorkerRegistrar />
+      <OfflineBanner online={online} />
 
       {error ? (
         <div className="shrink-0 border-b border-risk-severe/30 bg-risk-severe/10 px-4 py-2 text-[12px] text-risk-severe">
@@ -751,6 +836,14 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
           </button>
         ))}
       </nav>
+
+      {alertsOpen ? (
+        <AlertSheet
+          alerts={watchAlerts}
+          canAskForNotifications={profile.proactiveAlerts || profile.emergencyAlerts}
+          onClose={() => setAlertsOpen(false)}
+        />
+      ) : null}
 
       {selectedSegment ? (
         <SegmentSheet

@@ -46,6 +46,7 @@ export const en = {
     detailed: "Detailed",
     showWorking: "Show the working",
     hideWorking: "Hide the working",
+    offline: "Offline — showing the last conditions saved on this device.",
   },
 
   nav: {
@@ -125,6 +126,42 @@ export const en = {
     bus: "Bus",
     auto: "Auto or cab",
     walk: "On foot",
+  },
+
+  alerts: {
+    title: "Alerts",
+    none: "Nothing needs your attention right now.",
+    enableNotifications: "Tell me even when the app is closed",
+    notificationsOn: "You will be told even when this app is closed.",
+    notificationsBlocked:
+      "Notifications are blocked for this site in your browser settings.",
+
+    departureTitle: "Your window is closing",
+    departureBody:
+      "Leave by {clock}. After that, this journey stops being safe — about {min} minutes from now.",
+    noWindowTitle: "No safe departure today",
+    noWindowBody:
+      "There is no time in the next twelve hours that makes this journey safe. Consider the Metro, or not going.",
+    routeTitle: "Your route is blocked",
+    // Phrased so the number never has to agree with a verb — "1 of the roads
+    // are too deep" is the kind of sentence that makes people distrust the
+    // rest of the warning.
+    routeBody:
+      "Water on your safest route is too deep for this vehicle to cross. Roads affected: {count}.",
+    homeRisingTitle: "Water is building near you",
+    homeRisingBody: "{place} is modelled at {depth} cm and still rising.",
+    homeFloodingTitle: "Your area is flooding",
+    homeFloodingBody:
+      "{place} is modelled at {depth} cm. Do not drive through standing water you cannot see the bottom of.",
+    moveCarTitle: "Move your car now",
+    moveCarBody:
+      "{place} is modelled at {depth} cm. Basement ramps fill long before the road above does — move it while you still can.",
+    placeTitle: "{place} is at risk",
+    placeBody: "Modelled at {depth} cm.",
+    riverWarningTitle: "Yamuna above warning level",
+    riverDangerTitle: "Yamuna above danger level",
+    riverBody:
+      "{river} at {level} m — {status}. Danger level is {danger} m. Leave the floodplain.",
   },
 
   dashboard: {

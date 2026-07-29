@@ -42,6 +42,7 @@ export const mai: Messages = {
     detailed: "विस्तार सँ",
     showWorking: "हिसाब देखाउ",
     hideWorking: "हिसाब नुकाउ",
+    offline: "ऑफलाइन — एहि डिवाइसमे सहेजल पछिला हालति देखाओल जा रहल अछि।",
   },
 
   nav: {
@@ -121,6 +122,39 @@ export const mai: Messages = {
     bus: "बस",
     auto: "ऑटो वा कैब",
     walk: "पएरे",
+  },
+
+  alerts: {
+    title: "चेतावनी",
+    none: "एखन एहन किछु नै अछि जे अहाँके देखबाक हो।",
+    enableNotifications: "एप बन्न रहलो पर हमरा बताउ",
+    notificationsOn: "ई एप बन्न रहलो पर अहाँके कहल जाएत।",
+    notificationsBlocked:
+      "अहाँक ब्राउजर सेटिंगमे एहि साइटक सूचना रोकल अछि।",
+
+    departureTitle: "अहाँक निकलबाक समय खतम भ' रहल अछि",
+    departureBody:
+      "{clock} धरि निकलि जाउ। ओकरा बाद ई यात्रा सुरक्षित नै रहत — एखन सँ लगभग {min} मिनट।",
+    noWindowTitle: "आइ निकलबाक कोनो सुरक्षित समय नै",
+    noWindowBody:
+      "अगिला बारह घंटामे कोनो एहन समय नै अछि जाहिमे ई यात्रा सुरक्षित हो। मेट्रो सोचू, वा नै जाउ।",
+    routeTitle: "अहाँक रस्ता बन्न अछि",
+    routeBody:
+      "अहाँक सभ सँ सुरक्षित रस्ताक {count} सड़क पर एतेक पानि अछि जे ई गाड़ी पार नै क' सकत।",
+    homeRisingTitle: "अहाँक लग पानि बढ़ि रहल अछि",
+    homeRisingBody: "{place} मे अनुमान {depth} सेमी अछि आ एखनहु बढ़ि रहल अछि।",
+    homeFloodingTitle: "अहाँक इलाकामे पानि भरि रहल अछि",
+    homeFloodingBody:
+      "{place} मे अनुमान {depth} सेमी अछि। जाहि जमल पानिक तल नै देखाइ, ओहिमे गाड़ी नै चलाउ।",
+    moveCarTitle: "गाड़ी एखने हटाउ",
+    moveCarBody:
+      "{place} मे अनुमान {depth} सेमी अछि। उपरका सड़क डूबय सँ बहुत पहिनहि बेसमेंट रैम्प भरि जाइत अछि — जा धरि भ' सकैत अछि, हटा लिअ'।",
+    placeTitle: "{place} खतरामे अछि",
+    placeBody: "अनुमान {depth} सेमी।",
+    riverWarningTitle: "जमुना चेतावनी स्तर सँ उपर",
+    riverDangerTitle: "जमुना खतरा स्तर सँ उपर",
+    riverBody:
+      "{river} {level} मी पर — {status}। खतरा स्तर {danger} मी अछि। बाढ़ि क्षेत्र छोड़ि दिअ'।",
   },
 
   dashboard: {
