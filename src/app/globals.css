@@ -478,8 +478,15 @@ body {
   filter: saturate(0.22) brightness(0.44) contrast(1.1);
 }
 
-.fp-cinematic .leaflet-control-container {
+/* Only a map nobody can drive hides its controls — a zoom button on a
+   cinematic shot is a scroll bar in a film, but a map you *can* drive with no
+   visible way to zoom is just a map that looks broken. */
+.fp-cinematic-locked .leaflet-control-container {
   display: none;
+}
+
+.fp-cinematic .leaflet-control-attribution {
+  font-size: 9px !important;
 }
 
 /* Permanent labels on the cinematic pins — a caption on the scenery, not a

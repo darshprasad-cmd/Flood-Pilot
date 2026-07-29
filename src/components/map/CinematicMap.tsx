@@ -81,6 +81,13 @@ export default function CinematicMap({
   // The first camera is a jump, not a flight: animating in from Leaflet's
   // default view would open the product with a swoop across the Atlantic.
   const flownRef = useRef(false);
+  /**
+   * Set the moment the user touches the map, and never cleared.
+   *
+   * Drift must not resume afterwards. A map that keeps sliding out from under
+   * somebody's finger is not alive, it is broken.
+   */
+  const userTookOverRef = useRef(false);
 
   /* ── Create once ─────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -94,7 +101,10 @@ export default function CinematicMap({
       const map = leaflet.map(containerRef.current, {
         center: [camera.center.lat, camera.center.lng],
         zoom: camera.zoom,
-        zoomControl: false,
+        // An interactive map with no visible way to zoom reads as decoration.
+        // A locked one with zoom buttons reads as broken. Match the controls
+        // to whether the map can actually be driven.
+        zoomControl: interactive,
         attributionControl: true,
         renderer: leaflet.svg(),
         dragging: interactive,
@@ -162,57 +172,122 @@ export default function CinematicMap({
 
     const duration = camera.duration ?? 2.2;
 
-    if (camera.fit && camera.fit.length >= 2) {
-      const bounds = leaflet.latLngBounds(
-        camera.fit.map((p) => [p.lat, p.lng] as [number, number]),
-      );
-      if (flownRef.current) {
-        map.flyToBounds(bounds, { padding: [80, 80], duration, maxZoom: 13 });
+    const apply = (animate: boolean) => {
+      if (camera.fit && camera.fit.length >= 2) {
+        const bounds = leaflet.latLngBounds(
+          camera.fit.map((p) => [p.lat, p.lng] as [number, number]),
+        );
+        if (animate) {
+          map.flyToBounds(bounds, { padding: [80, 80], duration, maxZoom: 13 });
+        } else {
+          map.fitBounds(bounds, { padding: [80, 80], maxZoom: 13, animate: false });
+        }
+      } else if (animate) {
+        map.flyTo([camera.center.lat, camera.center.lng], camera.zoom, {
+          duration,
+          // Below 1 the flight decelerates into the target, which is what makes
+          // it read as arriving somewhere rather than stopping.
+          easeLinearity: 0.22,
+        });
       } else {
-        map.fitBounds(bounds, { padding: [80, 80], maxZoom: 13 });
+        map.setView([camera.center.lat, camera.center.lng], camera.zoom, {
+          animate: false,
+        });
       }
-    } else if (flownRef.current) {
-      map.flyTo([camera.center.lat, camera.center.lng], camera.zoom, {
-        duration,
-        // Below 1 the flight decelerates into the target, which is what makes
-        // it read as arriving somewhere rather than stopping.
-        easeLinearity: 0.22,
-      });
-    } else {
-      map.setView([camera.center.lat, camera.center.lng], camera.zoom, {
-        animate: false,
-      });
-    }
+    };
+
+    /**
+     * Animate only when the page can actually be seen.
+     *
+     * `flyTo` is driven entirely by `requestAnimationFrame`, and browsers do
+     * not run rAF in a hidden or backgrounded tab. Firing a flight into a tab
+     * nobody is looking at does not queue up — it leaves the map parked at its
+     * *previous* view for as long as the tab stays in the background, so a
+     * page opened in a background tab shows a map of India rather than the
+     * city it is supposed to be about. When we cannot be seen, jump instead.
+     */
+    apply(flownRef.current && !document.hidden);
     flownRef.current = true;
+
+    // And if the tab was hidden for the whole flight, put the map where it
+    // belongs on the way back — unless the user has since taken the wheel, in
+    // which case yanking their view back would be worse than the bug.
+    const onVisibility = () => {
+      if (document.hidden || userTookOverRef.current) return;
+      apply(false);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [ready, camera]);
 
   /* ── Idle drift ──────────────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map || !drift) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    // A very slow orbit. Fast enough that the page is alive, slow enough that
-    // nobody watching a flood map feels the ground moving under them.
-    let frame = 0;
     let raf = 0;
-    const origin = map.getCenter();
-    const radius = 0.012;
+    let frame = 0;
+    let stopped = false;
 
-    const tick = () => {
-      frame += 1;
-      const angle = (frame / 1400) * Math.PI * 2;
-      map.setView(
-        [origin.lat + Math.sin(angle) * radius * 0.55, origin.lng + Math.cos(angle) * radius],
-        map.getZoom(),
-        { animate: false },
-      );
+    const stop = () => {
+      stopped = true;
+      userTookOverRef.current = true;
+      cancelAnimationFrame(raf);
+    };
+
+    const container = map.getContainer();
+    const HANDOVER = ["mousedown", "wheel", "touchstart", "keydown"] as const;
+    for (const name of HANDOVER) {
+      container.addEventListener(name, stop, { passive: true });
+    }
+
+    const start = () => {
+      if (stopped || userTookOverRef.current) return;
+      // Captured once the flight has landed, so the orbit is around where the
+      // camera actually ended up rather than where it set off from.
+      const origin = map.getCenter();
+      const zoom = map.getZoom();
+
+      const tick = () => {
+        if (stopped) return;
+        frame += 1;
+        // Every third frame. The movement is far too slow for 60 Hz to be
+        // visible, and each setView repaints 120 SVG polylines.
+        if (frame % 3 === 0) {
+          const angle = (frame / 1400) * Math.PI * 2;
+          map.setView(
+            [
+              origin.lat + Math.sin(angle) * DRIFT_RADIUS * 0.55,
+              origin.lng + Math.cos(angle) * DRIFT_RADIUS,
+            ],
+            zoom,
+            { animate: false },
+          );
+        }
+        raf = requestAnimationFrame(tick);
+      };
       raf = requestAnimationFrame(tick);
     };
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced) raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [ready, drift]);
+    /**
+     * Wait for the camera to finish flying before drifting.
+     *
+     * This is load-bearing. `setView` cancels an in-progress `flyTo`, so
+     * starting the orbit immediately meant the very next animation frame threw
+     * away the flight and pinned the map wherever it had set off from — which
+     * is exactly how the landing page ended up frozen over India instead of
+     * arriving in Delhi. Timed rather than driven off `moveend`, because
+     * `moveend` never fires if the map happens to already be still.
+     */
+    const timer = setTimeout(start, (camera.duration ?? 2.2) * 1000 + 400);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+      for (const name of HANDOVER) container.removeEventListener(name, stop);
+    };
+  }, [ready, drift, camera]);
 
   /* ── Road risk ───────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -323,12 +398,16 @@ export default function CinematicMap({
   return (
     <div
       ref={containerRef}
-      className={`fp-cinematic h-full w-full ${className}`}
+      className={`fp-cinematic ${interactive ? "" : "fp-cinematic-locked"} h-full w-full ${className}`}
       style={{ touchAction: interactive ? "none" : "auto" }}
       aria-hidden={!interactive}
     />
   );
 }
+
+/** Degrees of longitude the idle orbit covers. Small enough to be felt rather
+ *  than watched — at city zoom it is a few hundred metres. */
+const DRIFT_RADIUS = 0.012;
 
 const PIN_STYLES: Record<
   CinematicPin["kind"],

@@ -100,7 +100,10 @@ export default function LandingExperience() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-ink-950">
       <div className="absolute inset-0">
-        <CinematicMap camera={camera} segments={segments} drift interactive={false} />
+        {/* Interactive. The brief asked for a map as the background, and a map
+            you cannot pan or zoom is a screenshot — the idle drift hands over
+            the moment anyone touches it. */}
+        <CinematicMap camera={camera} segments={segments} drift interactive />
       </div>
 
       <div
@@ -113,9 +116,12 @@ export default function LandingExperience() {
       />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <header className="safe-top absolute inset-x-0 top-0 z-20 flex items-center gap-4 px-4 py-4 sm:px-8">
+      {/* Every overlay is transparent to the pointer and re-enables it only on
+          the things that are actually controls. Otherwise a full-width bar
+          silently eats every drag that starts along the top of the map. */}
+      <header className="safe-top pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-4 px-4 py-4 sm:px-8">
         <Lockup size={15} />
-        <nav className="ms-auto flex items-center gap-1 sm:gap-2">
+        <nav className="pointer-events-auto ms-auto flex items-center gap-1 sm:gap-2">
           <Link
             href="/about"
             className="rounded-lg px-3 py-2 text-[12.5px] text-fg-muted transition-colors hover:text-fg"
@@ -132,9 +138,9 @@ export default function LandingExperience() {
       </div>
 
       {/* ── The one thing to do ──────────────────────────────────────────── */}
-      <div className="safe-bottom absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-5 sm:justify-start sm:px-8 sm:pb-10">
+      <div className="safe-bottom pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-5 sm:justify-start sm:px-8 sm:pb-10">
         <div className="animate-arrive w-full max-w-[30rem]">
-          <div className="float-card p-6 sm:p-7">
+          <div className="float-card pointer-events-auto p-6 sm:p-7">
             <p className="eyebrow mb-3.5 flex items-center gap-2">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-breathe absolute inset-0 rounded-full bg-risk-safe" />
