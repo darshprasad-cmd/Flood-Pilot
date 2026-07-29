@@ -10,7 +10,7 @@
  *   node scripts/enrich-osm.mjs bengaluru
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
@@ -46,6 +46,7 @@ function buildQueries([south, west, north, east]) {
   return [
     {
       name: "drainage channels",
+      fills: ["waterways"],
       query: `[out:json][timeout:120];
 (
   way["waterway"~"^(drain|canal|ditch)$"](${bbox});
@@ -54,6 +55,7 @@ out geom 4000;`,
     },
     {
       name: "streams and rivers",
+      fills: ["waterways"],
       query: `[out:json][timeout:120];
 (
   way["waterway"~"^(stream|river)$"](${bbox});
@@ -62,6 +64,7 @@ out geom 3000;`,
     },
     {
       name: "culverts and underpasses",
+      fills: ["culverts", "underpasses"],
       query: `[out:json][timeout:120];
 (
   node["man_made"="culvert"](${bbox});
@@ -72,6 +75,7 @@ out center 3000;`,
     },
     {
       name: "water bodies",
+      fills: ["waterBodies"],
       query: `[out:json][timeout:120];
 (
   way["natural"="water"](${bbox});
@@ -236,33 +240,71 @@ async function main() {
 
   console.log(`Extracting ${cityId} drainage geography from OpenStreetMap...`);
 
+  const dir = join(process.cwd(), "public", "data");
+  const path = join(dir, `${cityId}-osm-drainage.json`);
+
+  // Overpass rate-limits and times out unpredictably, and a partial run that
+  // wiped a good layer would be worse than not running at all. Load whatever is
+  // already there and only replace the collections whose pass succeeded.
+  let existing = null;
+  try {
+    existing = JSON.parse(await readFile(path, "utf8"));
+    console.log(
+      `Existing layer found: ${existing.waterways?.length ?? 0} channels, ${
+        existing.waterBodies?.length ?? 0
+      } water bodies. Failed passes will keep it.`,
+    );
+  } catch {
+    /* first run */
+  }
+
   const layer = emptyLayer(cityId);
   const failures = [];
+  const succeeded = new Set();
 
   for (const pass of buildQueries(bounds)) {
     console.log(`- ${pass.name}`);
     const payload = await runPass(pass.query, pass.name);
     if (payload) {
       parseInto(layer, payload);
+      for (const key of pass.fills) succeeded.add(key);
     } else {
       failures.push(pass.name);
     }
   }
 
-  if (failures.length === buildQueries(bounds).length) {
+  if (failures.length === buildQueries(bounds).length && !existing) {
     console.error(
-      "\nEvery Overpass pass failed. The public endpoints are rate-limiting; retry later or set OVERPASS_API_URL.",
+      "\nEvery Overpass pass failed and there is nothing cached. The public endpoints are rate-limiting; retry later or set OVERPASS_API_URL.",
     );
     process.exit(1);
   }
 
+  // Union with whatever was cached, deduplicated by OSM id.
+  //
+  // A union rather than a per-collection replace, because two passes both feed
+  // `waterways` — if one succeeded and the other did not, replacing would
+  // silently drop half the drainage network.
+  if (existing) {
+    for (const key of ["waterways", "culverts", "underpasses", "bridges", "waterBodies"]) {
+      const seen = new Set(layer[key].map((item) => item.id));
+      for (const item of existing[key] ?? []) {
+        if (!seen.has(item.id)) {
+          layer[key].push(item);
+          seen.add(item.id);
+        }
+      }
+    }
+  }
+  void succeeded;
+
   if (failures.length > 0) {
-    console.log(`\nPartial extraction — these passes failed: ${failures.join(", ")}`);
+    console.log(
+      `\nPartial extraction — these passes failed and kept their cached data: ${failures.join(", ")}`,
+    );
   }
 
-  const dir = join(process.cwd(), "public", "data");
   await mkdir(dir, { recursive: true });
-  const path = join(dir, `${cityId}-osm-drainage.json`);
   await writeFile(path, JSON.stringify(layer));
 
   const sizeKb = Math.round(JSON.stringify(layer).length / 1024);
