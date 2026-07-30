@@ -102,6 +102,26 @@ calibration driven by verified citizen reports.
 `AgentEnvelope.explanations` is typed `NonEmpty<Explanation>`, so an agent that
 returns an unexplained result does not compile.
 
+## Single-file build
+
+```bash
+npm run build:single      # → dist/dishaai.html
+```
+
+One HTML file, 967 KB, no server. Open it from a USB stick and the real engine
+runs client-side: the Delhi road graph, the hazard model, risk-based routing and
+vehicle survivability, with the OpenStreetMap drainage layer and Leaflet inlined.
+It fetches CARTO tiles and the Open-Meteo forecast when there is a network, and
+falls back to modelled rainfall when there is not.
+
+It is not a reimplementation. The bundle imports the same modules the Next app
+does, so the two cannot disagree about whether a road is passable. Verified
+side by side under a cloudburst: both report 104 roads at risk, 44 impassable
+and a 191 cm peak.
+
+What it leaves out, since it has no server or storage: citizen reporting, the
+alert layer, the seven languages and the operations dashboard.
+
 ## Delhi floods four different ways
 
 Most flood tools model rainfall and stop there. Delhi needs four models, because

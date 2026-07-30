@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>दिशाAI — Know the Safest Way Forward</title>
+    <meta
+      name="description"
+      content="AI urban flood intelligence for Delhi NCR, in a single file. Risk-based routing, vehicle survivability and explainable predictions."
+    />
+    <style>/*__LEAFLET_CSS__*/</style>
+    <style>
+      :root {
+        --ink-950: #05070b;
+        --ink-900: #090d15;
+        --ink-850: #0e131e;
+        --ink-800: #141a28;
+        --line: #1c2434;
+        --line-bright: #2a3549;
+        --fg: #e9eef7;
+        --fg-muted: #97a4bb;
+        --fg-faint: #5f6c85;
+        --signal: #2b8cf0;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--ink-950);
+        color: var(--fg);
+        font: 400 14px/1.5 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+      /* Devanagari needs a face that can actually render it. */
+      #brand { font-family: "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif; }
+
+      .app { display: flex; flex-direction: column; height: 100dvh; height: 100vh; }
+      @supports (height: 100dvh) { .app { height: 100dvh; } }
+
+      header {
+        display: flex; align-items: center; gap: 12px;
+        padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+        border-bottom: 1px solid var(--line);
+        background: var(--ink-900);
+        flex-shrink: 0;
+      }
+      #brand { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+      #tagline { font-size: 11px; color: var(--fg-faint); }
+      header select {
+        margin-left: auto; background: var(--ink-850); color: var(--fg);
+        border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12px;
+        max-width: 46vw;
+      }
+
+      .body { display: flex; flex: 1; min-height: 0; }
+      #map { flex: 1; min-width: 0; background: var(--ink-950); }
+      .leaflet-container { background: var(--ink-950) !important; }
+      .leaflet-tile-pane { filter: saturate(0.35) brightness(0.62) contrast(1.06); }
+
+      aside {
+        width: 360px; flex-shrink: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+        border-left: 1px solid var(--line); background: var(--ink-900);
+        padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      @media (max-width: 860px) {
+        .body { flex-direction: column; }
+        #map { height: 46vh; flex: none; }
+        aside { width: auto; border-left: 0; border-top: 1px solid var(--line); }
+      }
+
+      h3 { margin: 4px 0 12px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+      .eyebrow {
+        margin: 0 0 8px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--fg-faint);
+      }
+      .muted { color: var(--fg-muted); font-size: 12.5px; line-height: 1.6; }
+
+      #stats { display: flex; gap: 10px; margin-bottom: 18px; }
+      .stat {
+        flex: 1; background: var(--ink-850); border: 1px solid var(--line);
+        border-radius: 12px; padding: 10px 12px;
+      }
+      .stat span { display: block; font-size: 10px; text-transform: uppercase;
+        letter-spacing: 0.1em; color: var(--fg-faint); margin-bottom: 5px; }
+      .stat b { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+      .field { margin-bottom: 10px; }
+      .field span { display: block; font-size: 10px; text-transform: uppercase;
+        letter-spacing: 0.1em; color: var(--fg-faint); margin-bottom: 5px; }
+      select, button {
+        width: 100%; background: var(--ink-850); color: var(--fg);
+        border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+        font-size: 16px; font-family: inherit;
+      }
+      button {
+        background: var(--signal); border-color: var(--signal); color: #fff;
+        font-weight: 600; font-size: 14px; cursor: pointer; min-height: 44px; margin-top: 6px;
+      }
+      button:hover { background: #4aa8ff; }
+
+      .route {
+        border: 1px solid var(--line-bright); border-radius: 12px;
+        padding: 12px 14px; margin-bottom: 10px; background: var(--ink-850);
+      }
+      .row {
+        display: flex; justify-content: space-between; gap: 12px;
+        padding: 5px 0; font-size: 12.5px; color: var(--fg-muted);
+      }
+      .row b { color: var(--fg); font-variant-numeric: tabular-nums; }
+      .row.impassable b { color: #e8503a; }
+
+      .blockage { padding: 8px 0; border-top: 1px solid var(--line); }
+      .blockage b { display: block; font-size: 12.5px; }
+      .blockage span { font-size: 11.5px; color: var(--fg-faint); line-height: 1.5; }
+
+      hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+      #status {
+        padding: 8px 16px; font-size: 11px; color: var(--fg-faint);
+        border-top: 1px solid var(--line); background: var(--ink-900);
+        flex-shrink: 0; padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div>
+          <div id="brand">दिशाAI</div>
+          <div id="tagline">Know the Safest Way Forward.</div>
+        </div>
+        <select id="scenario" aria-label="Rainfall scenario"></select>
+      </header>
+
+      <div class="body">
+        <div id="map"></div>
+        <aside>
+          <div id="stats"></div>
+
+          <p class="eyebrow">Plan a journey</p>
+          <label class="field"><span>From</span><select id="from"></select></label>
+          <label class="field"><span>To</span><select id="to"></select></label>
+          <label class="field"><span>Vehicle</span><select id="vehicle"></select></label>
+          <button id="plan" type="button">Plan this journey</button>
+
+          <div id="routes" style="margin-top:16px"></div>
+          <hr />
+          <div id="detail">
+            <p class="eyebrow">Road detail</p>
+            <p class="muted">Select any road on the map to see its modelled depth, timing and failure modes.</p>
+          </div>
+        </aside>
+      </div>
+
+      <div id="status">Starting…</div>
+    </div>
+
+    <script>window.__DISHA_OSM__ = /*__OSM_JSON__*/null;</script>
+    <script>/*__BUNDLE__*/</script>
+  </body>
+</html>
