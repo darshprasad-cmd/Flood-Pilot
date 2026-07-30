@@ -10,10 +10,114 @@ what that means for one person, in one vehicle, on one journey, and says what to
 do. Every recommendation shows its reasoning, and every prediction carries a
 confidence score computed from the state of its inputs.
 
-Live at <https://dishaai-delhi.netlify.app>.
+Live at <https://dishaai-ncr.netlify.app>.
 
 > The GitHub repo is still called `Flood-Pilot`, from before the rename. The
 > package is `dishaai` and every user-facing string reads दिशाAI.
+
+## ShriTeq 2026 — Hackathon submission
+
+Built for **ShriTeq 2026**, Senior Hackathon (Tier 1), by a team from **Vasant
+Valley School**.
+
+**Theme: AI Agents for Industry Breakthroughs.** The industry is urban flood
+management and the mobility that fails around it. Delhi loses roads to
+waterlogging every monsoon, and the information needed to avoid them exists —
+rainfall forecasts, drain capacity, elevation, historical waterlogging registers
+— but it sits in separate places, in formats nobody reads while standing in the
+rain. The bottleneck is not sensing. It is the reasoning between a forecast and
+a decision.
+
+दिशाAI is a fleet of specialised agents that closes that gap for two very
+different users: a person deciding whether to drive, and a control room deciding
+where to send pumps.
+
+### The agent layer
+
+`src/lib/agents/` — six agents behind one orchestrator, each with a typed
+contract in `base.ts` and each required to return its reasoning, not just its
+answer.
+
+| Agent | File | What it decides |
+| --- | --- | --- |
+| Prediction | `core-agents.ts` | Runs the flood engine, flags the worst segments, reports which data sources were reachable |
+| Route | `core-agents.ts` | Compares journeys under time-dependent risk, refuses to return a route it believes is impassable |
+| Vehicle | `core-agents.ts` | Converts a vehicle into a survivable wading depth and warns when a leg is close to that limit |
+| Infrastructure | `infrastructure-agent.ts` | Reasons over drains, pumping stations and the waterlogging register |
+| Citizen | `citizen-agent.ts` | Weighs ground reports, verification confidence and clustering |
+| Decision | `decision-agent.ts` | Turns all of the above into one instruction a person can act on |
+
+`orchestrator.ts` plans the run, fans the agents out, and merges their findings
+into a single brief. This is the "autonomous workflow" aspect of the prompt: the
+user asks one question — *is it safe to travel?* — and a multi-step pipeline
+executes without further prompting.
+
+### Why this is not a chat wrapper
+
+The prompt encourages building your own models rather than calling somebody
+else's. There is no LLM in the decision path, and no API key is required to run
+this repository. The intelligence is ours:
+
+- A **19-feature scoring model** (`src/lib/engine/`) over an ordered feature
+  spec, producing signed per-feature contributions — the same idea as SHAP
+  values — so every probability can be decomposed into what drove it.
+- A **lumped-reservoir hydrology simulation** that produces a depth hydrograph
+  per road segment: onset, peak, and recovery over time, not a static score.
+- **Time-dependent routing** — a Dijkstra variant that evaluates each segment's
+  depth *at the minute the driver would arrive there*, which is why the safest
+  route is often not the shortest.
+- A **live-learning calibration loop** that compares predictions against
+  citizen-reported outcomes and adjusts per-segment bias and depth.
+
+Explainability is enforced by the type system: a prediction carries
+`NonEmpty<Explanation>`, so a model that cannot say why it decided something
+will not compile.
+
+### How it maps to the four aspects of the prompt
+
+| Prompt aspect | In this repo |
+| --- | --- |
+| Industry-specific intelligence | Delhi's drainage graph, vehicle wading physics, and the municipal waterlogging register — domain knowledge a general model does not have |
+| Autonomous workflows | `orchestrator.ts` plans and executes a multi-agent run from a single question |
+| Decision making & operational excellence | `/app` for one driver; `/gov` for a control room ranking where to intervene |
+| Discovery & research | Per-feature contributions and the calibration loop surface *which* roads the model systematically gets wrong |
+
+### Business model
+
+Free for the public, permanently — a flood warning behind a paywall is worthless.
+Revenue comes from the two parties for whom this is infrastructure rather than a
+consumer app: **municipal and disaster-management bodies**, who need the `/gov`
+operations view, historical calibration and API access; and **fleet and logistics
+operators**, for whom a flooded route is a quantifiable loss per vehicle per hour.
+The marginal cost of an additional citizen user is close to zero, which is what
+makes the free tier sustainable and the ground-report network — the thing that
+makes the model better — grow for free.
+
+Detailed financials, market sizing and growth modelling are in the pitch deck
+rather than this README.
+
+### Where to look, by judging criterion
+
+| Criterion | Start here |
+| --- | --- |
+| Technical accomplishment | `src/lib/engine/`, `src/lib/hazard/`, `src/lib/routing/safe-route.ts` |
+| Innovation | Time-dependent routing and the calibration loop |
+| UI and experience | `src/components/app/`, `src/app/globals.css` |
+| Source code quality | Four runtime dependencies; `tsconfig.json` strict; see below |
+| Adherence to the prompt | `src/lib/agents/` |
+
+### Originality and AI usage
+
+All source in this repository was written for this competition. There is no
+template, no site builder, and no UI kit — the design system, charts, map layers,
+service worker and animations are hand-written. The four runtime dependencies are
+listed below.
+
+AI coding assistance was used during development, which the competition rules
+permit. The architecture, the flood model, the routing algorithm and the product
+decisions are the team's own; the parts a reader is most likely to test —
+hydrology, scoring, routing, explainability — are original work and are
+documented in `/about` and in the sections below.
 
 ## Running it
 
@@ -56,7 +160,7 @@ leaflet    1.9   driven imperatively, not through react-leaflet
 | Offline | Hand-written service worker, 120 lines |
 | Hosting | Netlify. Serverless function plus one edge function for middleware |
 
-126 TypeScript files, roughly 31,900 lines.
+135 TypeScript files, roughly 35,700 lines.
 
 ### What is deliberately absent
 

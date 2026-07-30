@@ -62,6 +62,7 @@ interface RiskMapProps {
   routes?: MapRoute[];
   markers?: MapMarker[];
   selectedSegmentId?: string | null;
+  showSegments?: boolean;
   showDrains?: boolean;
   onSelectSegment?: (segmentId: string) => void;
   className?: string;
@@ -83,6 +84,7 @@ export default function RiskMap({
   routes = [],
   markers = [],
   selectedSegmentId = null,
+  showSegments = true,
   showDrains = true,
   onSelectSegment,
   className = "",
@@ -99,6 +101,13 @@ export default function RiskMap({
   }>({});
   const selectHandler = useRef(onSelectSegment);
   selectHandler.current = onSelectSegment;
+  /**
+   * Which route the camera was last framed on, so the five-minute prediction
+   * poll — which hands down a fresh `routes` array whether or not the route
+   * changed — cannot yank the view back out to the whole journey while someone
+   * is zoomed into their own junction reading the water depth there.
+   */
+  const lastFitRef = useRef<string | null>(null);
 
   /**
    * Leaflet is imported dynamically, so map creation is asynchronous while the
@@ -171,6 +180,7 @@ export default function RiskMap({
       cancelled = true;
       mapRef.current?.remove();
       mapRef.current = null;
+      lastFitRef.current = null;
       setReady(false);
     };
     // Intentionally once: subsequent prop changes are handled by the draw effects.
@@ -184,6 +194,7 @@ export default function RiskMap({
     if (!leaflet || !group) return;
 
     group.clearLayers();
+    if (!showSegments) return;
 
     for (const segment of segments) {
       const path = segment.geometry.map(
@@ -247,7 +258,7 @@ export default function RiskMap({
           .addTo(group);
       }
     }
-  }, [ready, segments, selectedSegmentId]);
+  }, [ready, segments, selectedSegmentId, showSegments]);
 
   /* ── Trunk drains ───────────────────────────────────────────────────── */
   useEffect(() => {
@@ -289,7 +300,12 @@ export default function RiskMap({
     if (!leaflet || !group || !map) return;
 
     group.clearLayers();
-    if (routes.length === 0) return;
+    if (routes.length === 0) {
+      // Dropping the route forgets the framing, so re-planning the same journey
+      // still flies back to it.
+      lastFitRef.current = null;
+      return;
+    }
 
     for (const route of routes) {
       const path = route.geometry.map((p) => [p.lat, p.lng] as [number, number]);
@@ -320,11 +336,24 @@ export default function RiskMap({
       void line;
     }
 
+    // The redraw above must run every tick — it is what keeps the route's colour
+    // honest about current risk. The camera must not: `routes` is a fresh array
+    // on every prediction refresh, so identity cannot tell "new journey" from
+    // "same journey, newer numbers". Endpoints and point count can.
+    const fitKey = routes
+      .map(
+        (r) =>
+          `${r.id}:${r.geometry.length}:${r.geometry[0]?.lat},${r.geometry[0]?.lng}:${r.geometry.at(-1)?.lat},${r.geometry.at(-1)?.lng}`,
+      )
+      .join("|");
+    if (fitKey === lastFitRef.current) return;
+
     const all = routes.flatMap((r) =>
       r.geometry.map((p) => [p.lat, p.lng] as [number, number]),
     );
     if (all.length > 1) {
       map.fitBounds(leaflet.latLngBounds(all), { padding: [56, 56], maxZoom: 14 });
+      lastFitRef.current = fitKey;
     }
   }, [ready, routes]);
 

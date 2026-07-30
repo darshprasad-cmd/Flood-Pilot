@@ -27,6 +27,11 @@ const CinematicMap = dynamic(() => import("@/components/map/CinematicMap"), {
  * Only questions that change an answer are asked. Somebody who takes the Metro
  * is never asked what they drive, because the vehicle model would have nothing
  * to say about their journey.
+ *
+ * It runs a second time too, from "Change my details" on the dashboard, and
+ * `firstRun` is how it tells the two apart. On that second run the answers
+ * already saved are the ones worth keeping, so backing out has to write
+ * nothing at all.
  */
 
 interface NodeOption {
@@ -82,7 +87,13 @@ const COMMON_HOME_IDS = [
   "janakpuri",
 ];
 
-export default function Onboarding({ onComplete }: { onComplete: () => void }) {
+export default function Onboarding({
+  onComplete,
+  firstRun,
+}: {
+  onComplete: () => void;
+  firstRun: boolean;
+}) {
   const t = useT();
   const { profile, replace } = useProfile();
   const [city, setCity] = useState<CityPayload | null>(null);
@@ -120,6 +131,26 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     [draft, onComplete, replace],
   );
 
+  /**
+   * Leaving without answering.
+   *
+   * On a first run the demo profile has to stand in, because closing alone
+   * would land straight back here — `completedAt` would still be null. On a
+   * second run it is the opposite: these are answers somebody just declined to
+   * change, so the flow closes and nothing is written. Not even `finish()` with
+   * no override, which would replay a half-edited draft over them and stamp a
+   * fresh `completedAt` for a change that never happened.
+   */
+  const leave = useCallback(() => {
+    if (firstRun) finish(DEMO_PROFILE);
+    else onComplete();
+  }, [firstRun, finish, onComplete]);
+
+  // The fetch below runs once with a deliberately empty dependency list, so it
+  // reads the flag from here rather than closing over a prop that closure would
+  // never see change.
+  const firstRunRef = useRef(firstRun);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/city")
@@ -128,10 +159,16 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
         if (!cancelled) setCity(data);
       })
       .catch(() => {
+        if (cancelled) return;
         // Onboarding cannot run without the junction list. Rather than show a
         // dead form, fall through to the demo profile so the product still
         // opens — the app itself will surface the network error properly.
-        if (!cancelled) finish(DEMO_PROFILE);
+        // Only for somebody who has nothing saved yet, though. Overwriting a
+        // returning user's home and vehicle because one request timed out would
+        // move the whole product to a neighbourhood they never named, with
+        // nobody having touched anything.
+        if (firstRunRef.current) finish(DEMO_PROFILE);
+        else onComplete();
       });
     return () => {
       cancelled = true;
@@ -282,10 +319,14 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           {stepId !== "building" ? (
             <button
               type="button"
-              onClick={() => finish(DEMO_PROFILE)}
+              onClick={leave}
               className="rounded-lg px-3 py-2 text-[12px] text-fg-faint transition-colors hover:text-fg-muted"
             >
-              {t.onboarding.skipSetup}
+              {/* "Skip setup" is only true the first time. On a second run
+                  nothing is being skipped — the saved answers stay exactly as
+                  they are — so the button has to read as a way out, not as a
+                  way past. */}
+              {firstRun ? t.onboarding.skipSetup : t.onboarding.keepMyAnswers}
             </button>
           ) : null}
         </div>

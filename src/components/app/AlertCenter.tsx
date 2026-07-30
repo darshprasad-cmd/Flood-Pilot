@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { SEVERITY_COLOR, type WatchAlert } from "@/lib/alerts/types";
 import {
@@ -58,6 +58,80 @@ export function AlertBell({
   );
 }
 
+/** Everything the browser would normally put in the Tab order. */
+const FOCUS_STOPS =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/**
+ * Dialog behaviour for a slide-over.
+ *
+ * Focus capture and restore get their own mount-only effect deliberately. The
+ * caller passes an inline `onClose` arrow, so an effect that depended on
+ * `onClose` would tear down and re-run on every parent render — pulling focus
+ * back to the bell behind the sheet mid-interaction. The key handler reads the
+ * latest `onClose` from a ref for the same reason, so the listener is bound once
+ * and stays bound.
+ *
+ * Tab is trapped rather than merely wrapped: on a phone the sheet is full-bleed,
+ * so a focus stop that lands on the page behind it is a button the person cannot
+ * see but can still activate.
+ */
+function useDialogFocus(onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+      const stops = panel.querySelectorAll<HTMLElement>(FOCUS_STOPS);
+
+      if (stops.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      const active = document.activeElement;
+
+      if (!panel.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return panelRef;
+}
+
+const TITLE_ID = "alert-sheet-title";
+
 export function AlertSheet({
   alerts,
   canAskForNotifications,
@@ -69,32 +143,39 @@ export function AlertSheet({
   onClose: () => void;
 }) {
   const t = useT();
+  const panelRef = useDialogFocus(onClose);
   const [permission, setPermission] = useState<NotifyState>("unsupported");
 
   // Read on mount rather than at module scope: `Notification` does not exist
   // during the server render, and the answer can change while the app is open.
   useEffect(() => setPermission(notifyState()), []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {/* The panel's own close control is the labelled one; this is the
+          click-anywhere shortcut, so assistive tech has no use for it. */}
       <button
         type="button"
-        aria-label={t.common.close}
+        aria-hidden
+        tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
       />
 
-      <div className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[420px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
+      {/* aria-modal is what takes the rest of the app out of the reading order;
+          the Tab trap does the same for the keyboard. */}
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={TITLE_ID}
+        tabIndex={-1}
+        className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[420px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl outline-none"
+      >
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <h2 className="flex-1 text-sm font-semibold">{t.alerts.title}</h2>
+          <h2 id={TITLE_ID} className="flex-1 text-sm font-semibold">
+            {t.alerts.title}
+          </h2>
           <button
             type="button"
             onClick={onClose}

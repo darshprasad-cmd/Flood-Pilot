@@ -19,6 +19,7 @@ export const ur: Messages = {
   common: {
     launchApp: "نقشہ کھولیں",
     close: "بند کریں",
+    closePanel: "پینل بند کریں",
     why: "کیوں؟",
     loading: "لوڈ ہو رہا ہے…",
     live: "براہِ راست ڈیٹا",
@@ -29,7 +30,9 @@ export const ur: Messages = {
     now: "ابھی",
     min: "منٹ",
     hr: "گھنٹے",
+    day: "دن",
     cm: "سینٹی میٹر",
+    m: "میٹر",
     km: "کلومیٹر",
     people: "لوگ",
     back: "واپس",
@@ -80,6 +83,7 @@ export const ur: Messages = {
     welcomeNote: "تقریباً 40 سیکنڈ۔ آپ کے جواب اسی فون میں رہتے ہیں۔",
 
     skipSetup: "سیٹ اپ چھوڑ دیں",
+    keepMyAnswers: "میرے جوابات ویسے ہی رہنے دیں",
     stepOf: "مرحلہ {n} از {total}",
 
     searchPlaceholder: "علاقہ تلاش کریں…",
@@ -275,6 +279,47 @@ export const ur: Messages = {
     rightNow: "اس وقت",
   },
 
+  layers: {
+    title: "پرتیں",
+    floodRisk: {
+      label: "سیلاب کا خطرہ",
+      description: "ہر سڑک کے لیے اندازہ شدہ سیلاب کا امکان اور گہرائی۔",
+    },
+    waterlogging: {
+      label: "براہِ راست پانی بھرنا",
+      description: "موقع پر موجود لوگوں کا ابھی بتایا ہوا پانی۔",
+    },
+    construction: {
+      label: "تعمیراتی کام",
+      description: "سڑک کا کام، میٹرو کی تعمیر اور بتائے گئے گڑھے۔",
+    },
+    congestion: {
+      label: "ٹریفک جام",
+      description: "بتایا گیا شدید ٹریفک اور بند پڑی گاڑیاں۔",
+    },
+    accidents: {
+      label: "حادثات",
+      description: "بتائے گئے تصادم اور ان سے بند ہونے والی لینیں۔",
+    },
+    closures: {
+      label: "سڑکوں کی بندش",
+      description: "بندش، گرے ہوئے درخت اور ٹوٹی ہوئی بجلی کی تاریں۔",
+    },
+    alerts: {
+      label: "کمیونٹی کی اطلاعات",
+      description: "ایمرجنسی گاڑیاں، پمپنگ کا کام، سب ٹھیک ہونے کی رپورٹیں۔",
+    },
+    signalDelay: {
+      label: "چوراہے پر تاخیر",
+      description:
+        "چوراہوں پر AI سے اندازہ شدہ تاخیر۔ یہ اندازہ ہے، شائع شدہ سگنل ٹائمنگ نہیں۔",
+    },
+    drains: {
+      label: "بڑے نالے اور جمنا",
+      description: "وہ نکاسی کا نظام جس پر شہر ٹکا ہوا ہے۔",
+    },
+  },
+
   risk: {
     safe: "محفوظ",
     low: "کم",
@@ -400,14 +445,26 @@ export const ur: Messages = {
       "شکریہ — اس سڑک کی پیشگوئی اپ ڈیٹ کر دی گئی ہے اور آپ کی رپورٹ پیشگوئی کے مقابلے میں درج کر لی گئی ہے۔",
     none:
       "اس سڑک سے ابھی کوئی رپورٹ نہیں۔ رپورٹ سے پیشگوئی فوراً بدلتی ہے اور وقت کے ساتھ اس کا اثر کم ہوتا ہے۔",
+    tooMany:
+      "ابھی یہاں سے بہت سی رپورٹیں آ چکی ہیں۔ چند منٹ بعد دوبارہ کوشش کریں۔",
+    failed:
+      "رپورٹ بھیجی نہیں جا سکی۔ اپنا کنکشن دیکھیں اور دوبارہ کوشش کریں۔",
   },
 
   segment: {
+    roadDetails: "سڑک کی تفصیل",
+    hotspotBadge: "آب زدگی کا مقام — {severity}",
+    hotspotSeverity: {
+      chronic: "پرانا",
+      recurring: "بار بار",
+      watch: "زیرِ نگرانی",
+    },
     floodProbability: "سیلاب کا امکان",
     peakDepth: "زیادہ سے زیادہ گہرائی",
     timeToFlood: "پانی بھرنے میں وقت",
     recovery: "پانی اترنے میں",
     modelledDepth: "متوقع پانی کی گہرائی",
+    noCurve: "گہرائی کا گراف دستیاب نہیں ہے۔",
     failureModes: "ناکامی کے طریقے",
     whatGoesWrong: "یہاں کیا غلط ہونے کا اندیشہ ہے",
     infrastructure: "بنیادی ڈھانچہ",
@@ -415,12 +472,22 @@ export const ur: Messages = {
     elevation: "بلندی",
     slope: "ڈھلان",
     drainCapacity: "نالے کی گنجائش",
+    percentOfDesign: "گنجائش کا {pct}%",
+    drainDistance: "{distance} میٹر دور · {silt}% گاد",
     floodplainExposure: "سیلابی علاقے میں حیثیت",
     basementParking: "بیسمنٹ پارکنگ",
+    buildings: "عمارتیں",
     pumpStations: "پمپنگ اسٹیشن",
     floodHistory: "سیلاب کی تاریخ",
     recordedEvents: "درج واقعات",
     register: "آب زدگی رجسٹر",
+    typicalDepth: "عام طور پر {depth} سینٹی میٹر، تقریباً {hours} گھنٹے",
+    fromThisRoad: "اسی سڑک سے",
+    recentReports: "حالیہ اطلاعات",
+    justNow: "ابھی ابھی",
+    minAgo: "{n} منٹ پہلے",
+    hrAgo: "{n} گھنٹے پہلے",
+    dayAgo: "{n} دن پہلے",
     standingWater: "8 سینٹی میٹر — پانی جمع",
     impassableAt: "30 سینٹی میٹر — ناقابلِ گزر",
     peak: "زیادہ سے زیادہ",

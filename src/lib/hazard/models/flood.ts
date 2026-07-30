@@ -71,7 +71,7 @@ export class FloodModel implements HazardModel<RoadSegment, FloodSignals> {
 
   extract(ctx: FloodContext): FeatureVector {
     const segment = ctx.subject;
-    const { bundle, osm, elevationRange } = ctx.signals;
+    const { bundle, calibration, osm, elevationRange } = ctx.signals;
 
     const weather = sampleWeather(bundle, segment.midpoint);
     const antecedent = sampleAntecedent(bundle, segment.midpoint);
@@ -133,12 +133,17 @@ export class FloodModel implements HazardModel<RoadSegment, FloodSignals> {
     const vector = buildFeatureVector(raw);
 
     // Run the depth model here so `predict` and the waterlogging assessment
-    // share one hydrograph rather than simulating twice.
+    // share one hydrograph rather than simulating twice. The learned depth
+    // correction goes in as a model parameter rather than onto the reported
+    // number afterwards: routing decides `impassable` off the onset curve, so a
+    // curve on a different scale from the displayed depth would send a car
+    // through water the screen had already called too deep.
     const params = pondingParams(
       segment,
       antecedent.wetnessIndex,
       lowness,
       effectiveDrainCapacity,
+      calibration.depthMultiplier,
     );
 
     // River backwater and a surcharged trunk drain both suppress recession —
@@ -210,10 +215,10 @@ export class FloodModel implements HazardModel<RoadSegment, FloodSignals> {
     const drivers = buildDrivers(vector, score.contributions);
 
     const weather = sampleWeather(bundle, segment.midpoint);
-    const hydrograph = derived.hydrograph;
 
-    const depthCm = hydrograph.currentDepthCm * calibration.depthMultiplier;
-    const peakDepthCm = hydrograph.peakDepthCm * calibration.depthMultiplier;
+    // Already on the calibrated scale — `extract` fed the learned multiplier
+    // into the ponding model. Nothing here may scale depth again.
+    const hydrograph = derived.hydrograph;
 
     // Re-run the blockage ranking now that probability is known.
     const waterlogging = assessWaterlogging({
@@ -257,9 +262,17 @@ export class FloodModel implements HazardModel<RoadSegment, FloodSignals> {
       hazard: "flood",
       subjectId: segment.id,
       probability,
-      magnitude: { value: depthCm, unit: "cm", label: "Water depth" },
-      peak: { value: peakDepthCm, unit: "cm", label: "Peak water depth" },
-      severity: riskLevelFrom(probability, peakDepthCm),
+      magnitude: {
+        value: hydrograph.currentDepthCm,
+        unit: "cm",
+        label: "Water depth",
+      },
+      peak: {
+        value: hydrograph.peakDepthCm,
+        unit: "cm",
+        label: "Peak water depth",
+      },
+      severity: riskLevelFrom(probability, hydrograph.peakDepthCm),
       timeToOnsetMin: hydrograph.timeToThresholdMin,
       peakAtMin: hydrograph.peakAtMin,
       onsetCurve: hydrograph.points,

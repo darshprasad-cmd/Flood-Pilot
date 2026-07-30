@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Card,
@@ -20,7 +20,7 @@ import {
   type SourceUsageDto,
 } from "./panels";
 import { ReportSheet } from "./ReportSheet";
-import { useT } from "@/lib/i18n";
+import { useT, type Messages } from "@/lib/i18n";
 import { fill } from "@/lib/i18n/fill";
 
 interface SegmentDetail {
@@ -91,12 +91,79 @@ interface SegmentDetail {
   sources: SourceUsageDto[];
 }
 
-const REPORT_OPTIONS = [
-  { type: "flooded_road", label: "Flooded", needsDepth: true },
-  { type: "road_clear", label: "Clear", needsDepth: false },
-  { type: "drain_blockage", label: "Drain blocked", needsDepth: false },
-  { type: "vehicle_stalled", label: "Vehicle stalled", needsDepth: true },
-];
+/** Everything the browser would normally put in the Tab order. */
+const FOCUS_STOPS =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/**
+ * Dialog behaviour for a slide-over.
+ *
+ * Focus capture and restore get their own mount-only effect deliberately. The
+ * callers pass inline `onClose` arrows, so an effect that depended on `onClose`
+ * would tear down and re-run on every parent render — pulling focus back to the
+ * button behind the sheet while somebody is still typing a depth into the report
+ * form. The key handler reads the latest `onClose` from a ref for the same
+ * reason, so the listener is bound once and stays bound.
+ *
+ * Tab is trapped rather than merely wrapped: on a phone the sheet is full-bleed,
+ * so a focus stop that lands on the page behind it is a button the person cannot
+ * see but can still activate.
+ */
+function useDialogFocus(onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+      const stops = panel.querySelectorAll<HTMLElement>(FOCUS_STOPS);
+
+      // Nothing to land on yet — the sheet is still a skeleton — so hold the
+      // caret on the panel rather than let it fall through to the hidden page.
+      if (stops.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      const active = document.activeElement;
+
+      if (!panel.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return panelRef;
+}
 
 /**
  * Road detail and reporting.
@@ -117,6 +184,8 @@ export function SegmentSheet({
   onClose: () => void;
   onReported: () => void;
 }) {
+  const t = useT();
+  const panelRef = useDialogFocus(onClose);
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
 
   const load = useCallback(async () => {
@@ -133,24 +202,34 @@ export function SegmentSheet({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const recovery =
+    detail && detail.segment.state.recoveryMin !== null
+      ? formatDuration(detail.segment.state.recoveryMin, t)
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {/* The panel's own close control is the labelled one; this is the
+          click-anywhere shortcut, so assistive tech has no use for it. */}
       <button
         type="button"
-        aria-label="Close"
+        aria-hidden
+        tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
       />
 
-      <div className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[460px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
+      {/* aria-modal is what takes the rest of the app out of the reading order;
+          the Tab trap does the same for the keyboard. The label is static
+          because the heading below only exists once `detail` has loaded. */}
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.segment.roadDetails}
+        tabIndex={-1}
+        className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[460px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl outline-none"
+      >
         {!detail ? (
           <div className="space-y-3 p-4">
             <Skeleton className="h-8" />
@@ -168,11 +247,11 @@ export function SegmentSheet({
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <RiskPill level={detail.segment.state.riskLevel} />
                   {detail.segment.isUnderpass ? (
-                    <Badge tone="warn">Underpass</Badge>
+                    <Badge tone="warn">{t.route.underpass}</Badge>
                   ) : null}
                   {detail.segment.hotspot ? (
                     <Badge tone="danger">
-                      {detail.segment.hotspot.severity} hotspot
+                      {hotspotBadge(t, detail.segment.hotspot.severity)}
                     </Badge>
                   ) : null}
                 </div>
@@ -186,7 +265,7 @@ export function SegmentSheet({
                 type="button"
                 onClick={onClose}
                 className="shrink-0 rounded-lg p-1.5 text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
-                aria-label="Close panel"
+                aria-label={t.common.closePanel}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path
@@ -204,32 +283,31 @@ export function SegmentSheet({
               <Card>
                 <div className="grid grid-cols-2 gap-4 px-4 py-4">
                   <Metric
-                    label="Flood probability"
+                    label={t.segment.floodProbability}
                     value={Math.round(detail.segment.state.probability * 100)}
                     unit="%"
                     tone={detail.segment.state.probability > 0.5 ? "risk" : "default"}
                   />
                   <Metric
-                    label="Peak depth"
+                    label={t.segment.peakDepth}
                     value={detail.segment.state.peakDepthCm.toFixed(0)}
-                    unit="cm"
+                    unit={t.common.cm}
                   />
                   <Metric
-                    label="Time to flood"
+                    label={t.segment.timeToFlood}
                     value={
                       detail.segment.state.timeToFloodMin === null
                         ? "—"
                         : `${detail.segment.state.timeToFloodMin}`
                     }
-                    unit={detail.segment.state.timeToFloodMin === null ? "" : "min"}
+                    unit={
+                      detail.segment.state.timeToFloodMin === null ? "" : t.common.min
+                    }
                   />
                   <Metric
-                    label="Recovery"
-                    value={
-                      detail.segment.state.recoveryMin === null
-                        ? "—"
-                        : formatMinutes(detail.segment.state.recoveryMin)
-                    }
+                    label={t.segment.recovery}
+                    value={recovery?.value ?? "—"}
+                    unit={recovery?.unit}
                   />
                 </div>
                 <div className="border-t border-line px-4 py-3">
@@ -243,14 +321,17 @@ export function SegmentSheet({
 
               {/* Onset curve */}
               <Card>
-                <CardHeader eyebrow="Next 12 hours" title="Modelled water depth" />
+                <CardHeader
+                  eyebrow={t.timeline.next12h}
+                  title={t.segment.modelledDepth}
+                />
                 <div className="px-4 py-4">
                   <DepthChart points={detail.prediction.onsetCurve} />
                 </div>
               </Card>
 
               <WhyPanel
-                title="Why this prediction?"
+                title={t.explain.predictionTitle}
                 explanations={detail.prediction.explanations}
                 limit={10}
               />
@@ -259,42 +340,56 @@ export function SegmentSheet({
 
               {/* Infrastructure */}
               <Card>
-                <CardHeader eyebrow="Infrastructure" title="What is here" />
+                <CardHeader
+                  eyebrow={t.segment.infrastructure}
+                  title={t.segment.whatIsHere}
+                />
                 <dl className="divide-y divide-line">
-                  <Row label="Elevation" value={`${detail.segment.elevationM} m`} />
-                  <Row label="Slope" value={`${detail.segment.slopePct.toFixed(2)}%`} />
                   <Row
-                    label="Drain capacity"
-                    value={`${Math.round(detail.segment.state.drainCapacity * 100)}% of design`}
+                    label={t.segment.elevation}
+                    value={`${detail.segment.elevationM} ${t.common.m}`}
+                  />
+                  <Row
+                    label={t.segment.slope}
+                    value={`${detail.segment.slopePct.toFixed(2)}%`}
+                  />
+                  <Row
+                    label={t.segment.drainCapacity}
+                    value={fill(t.segment.percentOfDesign, {
+                      pct: Math.round(detail.segment.state.drainCapacity * 100),
+                    })}
                   />
                   {detail.segment.majorDrain ? (
                     <Row
                       label={detail.segment.majorDrain.name}
-                      value={`${Math.round(detail.segment.majorDrain.distanceM)} m away · ${Math.round(
-                        detail.segment.majorDrain.siltationIndex * 100,
-                      )}% silted`}
+                      value={fill(t.segment.drainDistance, {
+                        distance: Math.round(detail.segment.majorDrain.distanceM),
+                        silt: Math.round(
+                          detail.segment.majorDrain.siltationIndex * 100,
+                        ),
+                      })}
                     />
                   ) : null}
                   {detail.segment.floodplainExposure > 0.1 ? (
                     <Row
-                      label="Floodplain exposure"
+                      label={t.segment.floodplainExposure}
                       value={`${Math.round(detail.segment.floodplainExposure * 100)}%`}
                     />
                   ) : null}
                   {detail.segment.basementParking > 0 ? (
                     <Row
-                      label="Basement parking"
-                      value={`${detail.segment.basementParking} buildings`}
+                      label={t.segment.basementParking}
+                      value={`${detail.segment.basementParking} ${t.segment.buildings}`}
                     />
                   ) : null}
                   {detail.segment.pumpStations > 0 ? (
                     <Row
-                      label="Pumping stations"
+                      label={t.segment.pumpStations}
                       value={String(detail.segment.pumpStations)}
                     />
                   ) : null}
                   <Row
-                    label="People exposed"
+                    label={t.stats.peopleExposed}
                     value={detail.segment.populationExposure.toLocaleString()}
                   />
                 </dl>
@@ -304,7 +399,7 @@ export function SegmentSheet({
               {detail.segment.hotspot ? (
                 <Card>
                   <CardHeader
-                    eyebrow="Waterlogging register"
+                    eyebrow={t.segment.register}
                     title={detail.segment.hotspot.name}
                   />
                   <div className="px-4 py-3">
@@ -312,9 +407,11 @@ export function SegmentSheet({
                       {detail.segment.hotspot.note}
                     </p>
                     <p className="mt-2 text-[11px] text-fg-faint">
-                      Typically {detail.segment.hotspot.typicalDepthCm} cm for about{" "}
-                      {detail.segment.hotspot.typicalDurationHr} hours ·{" "}
-                      {detail.segment.hotspot.source}
+                      {fill(t.segment.typicalDepth, {
+                        depth: detail.segment.hotspot.typicalDepthCm,
+                        hours: detail.segment.hotspot.typicalDurationHr,
+                      })}{" "}
+                      · {detail.segment.hotspot.source}
                     </p>
                   </div>
                 </Card>
@@ -323,7 +420,10 @@ export function SegmentSheet({
               {/* History */}
               {detail.history.length > 0 ? (
                 <Card>
-                  <CardHeader eyebrow="Recorded events" title="Flood history" />
+                  <CardHeader
+                    eyebrow={t.segment.recordedEvents}
+                    title={t.segment.floodHistory}
+                  />
                   <ul className="divide-y divide-line">
                     {detail.history.map((event) => (
                       <li
@@ -332,7 +432,8 @@ export function SegmentSheet({
                       >
                         <span className="numeric text-fg-muted">{event.date}</span>
                         <span className="numeric text-fg">
-                          {event.depthCm} cm · {event.durationHr} hr
+                          {event.depthCm} {t.common.cm} · {event.durationHr}{" "}
+                          {t.common.hr}
                         </span>
                       </li>
                     ))}
@@ -354,8 +455,8 @@ export function SegmentSheet({
               {detail.reports.length > 0 ? (
                 <Card>
                   <CardHeader
-                    eyebrow="From this road"
-                    title="Recent reports"
+                    eyebrow={t.segment.fromThisRoad}
+                    title={t.segment.recentReports}
                     right={<Badge tone="signal">{detail.reports.length}</Badge>}
                   />
                   <ul className="divide-y divide-line">
@@ -364,10 +465,12 @@ export function SegmentSheet({
                         <div className="flex items-baseline justify-between gap-3">
                           <span className="text-[12px] capitalize text-fg-muted">
                             {report.type.replace(/_/g, " ")}
-                            {report.depthCm !== null ? ` · ${report.depthCm} cm` : ""}
+                            {report.depthCm !== null
+                              ? ` · ${report.depthCm} ${t.common.cm}`
+                              : ""}
                           </span>
                           <span className="shrink-0 text-[10.5px] text-fg-faint">
-                            {timeAgo(report.createdAt)}
+                            {timeAgo(report.createdAt, t)}
                           </span>
                         </div>
                         {report.note ? (
@@ -396,7 +499,8 @@ function DepthChart({
 }: {
   points: { minutesFromNow: number; value: number; forcing: number }[];
 }) {
-  if (points.length < 2) return <Empty>No depth curve available.</Empty>;
+  const t = useT();
+  if (points.length < 2) return <Empty>{t.segment.noCurve}</Empty>;
 
   const width = 380;
   const height = 92;
@@ -420,7 +524,7 @@ function DepthChart({
         className="w-full"
         preserveAspectRatio="none"
         role="img"
-        aria-label="Modelled water depth over the next twelve hours"
+        aria-label={`${t.segment.modelledDepth} — ${t.timeline.next12h}`}
       >
         {/* Rainfall as background bars — the forcing behind the curve. */}
         {points.map((p, i) => (
@@ -471,13 +575,19 @@ function DepthChart({
       </svg>
 
       <div className="mt-1.5 flex justify-between text-[10px] text-fg-faint">
-        <span>Now</span>
-        <span className="numeric">Peak {maxDepth.toFixed(0)} cm</span>
-        <span>+{Math.round(maxMin / 60)} hr</span>
+        <span>{t.common.now}</span>
+        <span className="numeric">
+          {t.segment.peak} {maxDepth.toFixed(0)} {t.common.cm}
+        </span>
+        <span>
+          +{Math.round(maxMin / 60)} {t.common.hr}
+        </span>
       </div>
       <div className="mt-1 flex gap-3 text-[10px] text-fg-faint">
-        <Legend color="#e8b62c" label="8 cm — standing water" />
-        {maxDepth > 24 ? <Legend color="#e8503a" label="30 cm — impassable" /> : null}
+        <Legend color="#e8b62c" label={t.segment.standingWater} />
+        {maxDepth > 24 ? (
+          <Legend color="#e8503a" label={t.segment.impassableAt} />
+        ) : null}
       </div>
     </div>
   );
@@ -501,18 +611,42 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `${Math.round(minutes)}m`;
+/**
+ * How long the water takes to go, in whichever unit keeps it readable.
+ *
+ * Number and unit come back separately so the unit can be a translated word
+ * next to a Latin numeral — the compact "45m / 2.1h / 1.2d" this used to emit
+ * reads as English to a Hindi or Bengali speaker, and "h" is not a unit anybody
+ * outside a Latin script recognises on sight.
+ */
+function formatDuration(
+  minutes: number,
+  t: Messages,
+): { value: string; unit: string } {
+  if (minutes < 60) {
+    return { value: String(Math.round(minutes)), unit: t.common.min };
+  }
   const hrs = minutes / 60;
-  return hrs < 24 ? `${hrs.toFixed(1)}h` : `${(hrs / 24).toFixed(1)}d`;
+  return hrs < 24
+    ? { value: hrs.toFixed(1), unit: t.common.hr }
+    : { value: (hrs / 24).toFixed(1), unit: t.common.day };
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: Messages): string {
   const min = (Date.now() - Date.parse(iso)) / 60_000;
-  if (min < 1) return "just now";
-  if (min < 60) return `${Math.round(min)} min ago`;
-  if (min < 1440) return `${Math.round(min / 60)} hr ago`;
-  return `${Math.round(min / 1440)} d ago`;
+  if (min < 1) return t.segment.justNow;
+  if (min < 60) return fill(t.segment.minAgo, { n: Math.round(min) });
+  if (min < 1440) return fill(t.segment.hrAgo, { n: Math.round(min / 60) });
+  return fill(t.segment.dayAgo, { n: Math.round(min / 1440) });
+}
+
+/** The register grades a hotspot by how often it goes under, not how deep. */
+function hotspotBadge(t: Messages, severity: string): string {
+  const grade =
+    t.segment.hotspotSeverity[
+      severity as keyof Messages["segment"]["hotspotSeverity"]
+    ] ?? severity;
+  return fill(t.segment.hotspotBadge, { severity: grade });
 }
 
 /**

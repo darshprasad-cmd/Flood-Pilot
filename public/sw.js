@@ -14,7 +14,7 @@
  * readable by whoever debugs it at 3am during a monsoon.
  */
 
-const VERSION = "disha-v1";
+const VERSION = "disha-45d8abc";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 
@@ -61,7 +61,15 @@ self.addEventListener("activate", (event) => {
           keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)),
         ),
       )
-      .then(() => self.clients.claim()),
+      // Take over the open tab as well as future ones. Without this the visitor
+      // who is looking at the stale page right now keeps looking at it until
+      // they close every tab on the origin, which nobody does.
+      .then(() => self.clients.claim())
+      .then(async () => {
+        for (const client of await self.clients.matchAll({ type: "window" })) {
+          client.navigate(client.url);
+        }
+      }),
   );
 });
 

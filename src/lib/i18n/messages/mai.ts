@@ -18,6 +18,7 @@ export const mai: Messages = {
   common: {
     launchApp: "नक्शा खोलू",
     close: "बन्न करू",
+    closePanel: "पैनल बन्न करू",
     why: "किएक?",
     loading: "लोड भ' रहल अछि…",
     live: "लाइव डेटा",
@@ -28,7 +29,9 @@ export const mai: Messages = {
     now: "एखन",
     min: "मिनट",
     hr: "घंटा",
+    day: "दिन",
     cm: "सेमी",
+    m: "मी",
     km: "किमी",
     people: "लोक",
     back: "पाछू",
@@ -79,6 +82,7 @@ export const mai: Messages = {
     welcomeNote: "लगभग 40 सेकंड। अहाँक जवाब एहि डिवाइसेमे रहत।",
 
     skipSetup: "सेटअप छोड़ि दिअ'",
+    keepMyAnswers: "हमर जवाब ओहिना रहए दिअ'",
     stepOf: "{total} मे सँ चरण {n}",
 
     searchPlaceholder: "इलाका खोजू…",
@@ -273,6 +277,47 @@ export const mai: Messages = {
     rightNow: "एखन",
   },
 
+  layers: {
+    title: "परत",
+    floodRisk: {
+      label: "बाढ़िक खतरा",
+      description: "हर सड़कक लेल अनुमानित बाढ़िक सम्भावना आ गहराइ।",
+    },
+    waterlogging: {
+      label: "लाइव जलजमाव",
+      description: "मौका पर उपस्थित लोक द्वारा एखने बताओल गेल पानि।",
+    },
+    construction: {
+      label: "निर्माण कार्य",
+      description: "सड़कक काज, मेट्रोक निर्माण आ बताओल गेल गड्ढा।",
+    },
+    congestion: {
+      label: "जाम",
+      description: "बताओल गेल भारी ट्रैफिक आ बन्न भेल गाड़ी।",
+    },
+    accidents: {
+      label: "दुर्घटना",
+      description: "बताओल गेल टक्कर आ ओहि सँ बन्न भेल लेन।",
+    },
+    closures: {
+      label: "सड़क बन्न",
+      description: "बन्नी, खसल गाछ आ टूटल बिजलीक तार।",
+    },
+    alerts: {
+      label: "समुदायक चेतावनी",
+      description: "आपातकालीन गाड़ी, पम्पिंगक काज, सभ ठीक रहबाक रिपोर्ट।",
+    },
+    signalDelay: {
+      label: "चौक पर देरी",
+      description:
+        "चौक पर AI सँ अनुमानित देरी। ई अनुमान थिक, प्रकाशित सिग्नल समय नै।",
+    },
+    drains: {
+      label: "पैघ नाला आ जमुना",
+      description: "जाहि निकासी तंत्र पर शहर टिकल अछि।",
+    },
+  },
+
   risk: {
     safe: "सुरक्षित",
     low: "कम",
@@ -398,14 +443,26 @@ export const mai: Messages = {
       "धन्यवाद — एहि सड़कक अनुमान अपडेट भ' गेल आ अहाँक रिपोर्ट अनुमानक तुलनामे दर्ज भ' गेल।",
     none:
       "एहि सड़क सँ एखन कोनो रिपोर्ट नै। रिपोर्ट सँ अनुमान तुरंत बदलैत अछि आ समयक संग ओकर असर घटैत अछि।",
+    tooMany:
+      "एखने एतऽ सँ बहुत रिपोर्ट आबि गेल अछि। किछु मिनट बाद फेर प्रयास करू।",
+    failed:
+      "रिपोर्ट पठाओल नै जा सकल। अपन कनेक्शन देखू आ फेर प्रयास करू।",
   },
 
   segment: {
+    roadDetails: "सड़कक विवरण",
+    hotspotBadge: "जलजमावक ठाम — {severity}",
+    hotspotSeverity: {
+      chronic: "पुरान",
+      recurring: "बेर-बेर",
+      watch: "निगरानीमे",
+    },
     floodProbability: "बाढ़िक संभावना",
     peakDepth: "अधिकतम गहराइ",
     timeToFlood: "पानि जमबामे समय",
     recovery: "पानि उतरबामे",
     modelledDepth: "अनुमानित पानिक गहराइ",
+    noCurve: "गहराइक ग्राफ उपलब्ध नै अछि।",
     failureModes: "बिगड़बाक तरीका",
     whatGoesWrong: "एतय की गलत होएबाक आशंका अछि",
     infrastructure: "बुनियादी ढाँचा",
@@ -413,12 +470,22 @@ export const mai: Messages = {
     elevation: "उँचाइ",
     slope: "ढलान",
     drainCapacity: "नालाक क्षमता",
+    percentOfDesign: "क्षमताक {pct}%",
+    drainDistance: "{distance} मी दूर · {silt}% गाद",
     floodplainExposure: "बाढ़ि क्षेत्रमे स्थिति",
     basementParking: "बेसमेंट पार्किंग",
+    buildings: "इमारत",
     pumpStations: "पंपिंग स्टेशन",
     floodHistory: "बाढ़िक इतिहास",
     recordedEvents: "दर्ज घटना",
     register: "जलजमाव रजिस्टर",
+    typicalDepth: "आमतौर पर {depth} सेमी, लगभग {hours} घंटा",
+    fromThisRoad: "एहि सड़क सँ",
+    recentReports: "हालक रिपोर्ट",
+    justNow: "एखने",
+    minAgo: "{n} मिनट पहिने",
+    hrAgo: "{n} घंटा पहिने",
+    dayAgo: "{n} दिन पहिने",
     standingWater: "8 सेमी — पानि जमल",
     impassableAt: "30 सेमी — नै चलबा योग्य",
     peak: "अधिकतम",

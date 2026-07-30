@@ -193,7 +193,7 @@ function search(
   const destination = best.get(destinationNodeId);
   if (!destination) return null;
 
-  return buildResult(graph, predictions, request, mode, best);
+  return buildResult(graph, predictions, request, mode, best, intelligence);
 }
 
 /**
@@ -294,6 +294,12 @@ function buildResult(
   request: RouteRequest,
   mode: RouteMode,
   labels: Map<string, Label>,
+  /**
+   * The same intelligence the search costed with. Without it the legs would be
+   * re-timed on congestion alone, so the arrival times we show — and the depths
+   * sampled at those times — would be the ones the search already rejected.
+   */
+  intelligence?: Map<string, RoadIntelligence>,
 ): RouteResult | null {
   const nodeIds: string[] = [];
   const segmentIds: string[] = [];
@@ -318,7 +324,7 @@ function buildResult(
 
     const state = graph.getState(segmentId);
     const prediction = predictions.get(segmentId);
-    const travelMin = travelTime(segment, state);
+    const travelMin = travelTime(segment, state, intelligence?.get(segmentId));
     const entersAtMin = request.departInMin + elapsedMin;
     const depthOnArrivalCm = depthOnArrival(prediction, entersAtMin);
 

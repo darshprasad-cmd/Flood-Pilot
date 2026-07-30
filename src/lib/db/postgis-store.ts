@@ -78,13 +78,28 @@ export class PostgisStore implements FloodPilotStore {
       Number.MAX_SAFE_INTEGER * 0,
     )}${cryptoSuffix()}`;
 
-    const { rows } = await db.query<DbReport>(
+    await db.query(
       `INSERT INTO citizen_report
          (id, city_id, segment_id, type, severity, depth_cm, lanes_blocked,
           description, photo_url, reporter_id, reporter_trust, geom)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-               ST_SetSRID(ST_MakePoint($13,$12), 4326)::geography)
-       RETURNING *, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+               COALESCE($11::real, (
+                 -- Standing for this reporter, from how their previous reports
+                 -- held up. Volume buys nothing; only confirmation and
+                 -- contradiction by other people move it, and only as far as
+                 -- the length of the record justifies.
+                 SELECT CASE
+                          WHEN COALESCE(sum(corroborations + contradictions), 0) = 0
+                            THEN 0.6
+                          ELSE greatest(0.2, least(0.95,
+                                 0.6 + ((sum(corroborations)::real
+                                         / sum(corroborations + contradictions)) - 0.6)
+                                       * least(1.0, sum(corroborations + contradictions) / 8.0)))
+                        END
+                 FROM citizen_report
+                 WHERE reporter_id = $10
+               )),
+               ST_SetSRID(ST_MakePoint($13,$12), 4326)::geography)`,
       [
         id,
         input.cityId,
@@ -96,36 +111,69 @@ export class PostgisStore implements FloodPilotStore {
         input.description,
         input.photoUrl,
         input.reporterId,
-        input.reporterTrust ?? 0.6,
+        input.reporterTrust ?? null,
         input.at.lat,
         input.at.lng,
       ],
     );
 
     // Cross-reference against nearby recent reports. Agreement raises the weight
-    // a report carries; disagreement lowers it.
+    // a report carries; disagreement lowers it — counted by *distinct reporter*,
+    // which is why the neighbour set excludes the submitter's own reports. One
+    // device filing four times is one witness, not four.
+    const neighbourhood = `
+      WITH subject AS (
+        SELECT geom, reporter_id FROM citizen_report WHERE id = $2
+      ),
+      neighbours AS (
+        SELECT r.id, r.geom, r.reporter_id,
+               (r.type IN ('waterlogging','vehicle_stalled','overflowing_drain')) AS positive
+        FROM citizen_report r, subject s
+        WHERE r.segment_id = $1
+          AND r.id <> $2
+          AND r.reporter_id <> s.reporter_id
+          AND r.created_at > now() - interval '90 minutes'
+          AND ST_DWithin(r.geom, s.geom, 600)
+      )`;
+
+    const values = [input.segmentId, id, isFloodPositive(input.type)];
+
+    // The neighbours' tallies, raised only where this reporter is not already
+    // standing beside them: a second report from the same person must not lift
+    // the same neighbour twice.
     await db.query(
-      `WITH neighbours AS (
-         SELECT id, (type IN ('waterlogging','vehicle_stalled','overflowing_drain')) AS positive
-         FROM citizen_report
-         WHERE segment_id = $1
-           AND id <> $2
-           AND created_at > now() - interval '90 minutes'
-           AND ST_DWithin(geom, (SELECT geom FROM citizen_report WHERE id = $2), 600)
-       )
+      `${neighbourhood}
        UPDATE citizen_report r
-       SET corroborations = r.corroborations
-             + (SELECT count(*) FROM neighbours n
-                WHERE n.positive = $3 AND (n.id = r.id OR r.id = $2)),
-           contradictions = r.contradictions
-             + (SELECT count(*) FROM neighbours n
-                WHERE n.positive <> $3 AND (n.id = r.id OR r.id = $2))
-       WHERE r.id = $2 OR r.id IN (SELECT id FROM neighbours)`,
-      [
-        input.segmentId,
-        id,
-        isFloodPositive(input.type),
-      ],
+       SET corroborations = r.corroborations + CASE WHEN n.positive = $3 THEN 1 ELSE 0 END,
+           contradictions = r.contradictions + CASE WHEN n.positive <> $3 THEN 1 ELSE 0 END
+       FROM neighbours n, subject s
+       WHERE r.id = n.id
+         AND NOT EXISTS (
+           SELECT 1 FROM citizen_report p
+           WHERE p.reporter_id = s.reporter_id
+             AND p.id <> $2
+             AND p.segment_id = $1
+             AND p.created_at > now() - interval '90 minutes'
+             AND (p.type IN ('waterlogging','vehicle_stalled','overflowing_drain')) = $3
+             AND ST_DWithin(p.geom, n.geom, 600)
+         )`,
+      values,
+    );
+
+    // The new report's own tallies: how many *people* nearby agree or disagree.
+    // Applied last so the row that comes back carries the settled numbers.
+    const { rows } = await db.query<DbReport>(
+      `${neighbourhood}
+       UPDATE citizen_report r
+       SET corroborations = (
+             SELECT count(DISTINCT n.reporter_id) FROM neighbours n WHERE n.positive = $3
+           ),
+           contradictions = (
+             SELECT count(DISTINCT n.reporter_id) FROM neighbours n WHERE n.positive <> $3
+           )
+       WHERE r.id = $2
+       RETURNING r.*, ST_Y(r.geom::geometry) AS lat, ST_X(r.geom::geometry) AS lng`,
+      values,
     );
 
     return mapReport(rows[0]);

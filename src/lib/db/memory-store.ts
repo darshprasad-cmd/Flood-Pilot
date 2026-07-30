@@ -1,4 +1,4 @@
-import { haversineM } from "@/lib/core/math";
+import { clamp, haversineM } from "@/lib/core/math";
 import type {
   CitizenReport,
   FloodPilotStore,
@@ -6,6 +6,13 @@ import type {
   OutcomeRecord,
   ReportQuery,
 } from "./types";
+
+/** Two reports further apart than this are not about the same stretch of road. */
+const CORROBORATION_RADIUS_M = 600;
+/** Corroboration is about the present; ninety minutes is already generous. */
+const CORROBORATION_WINDOW_MIN = 90;
+/** No history yet. Deliberately mid-scale: unknown is not the same as good. */
+const BASE_REPORTER_TRUST = 0.6;
 
 /**
  * In-memory store.
@@ -32,35 +39,94 @@ export class MemoryStore implements FloodPilotStore {
       ...input,
       id: this.nextId("rep"),
       createdAt: new Date().toISOString(),
-      reporterTrust: input.reporterTrust ?? 0.6,
+      reporterTrust: input.reporterTrust ?? this.trustFor(input.reporterId),
       corroborations: 0,
       contradictions: 0,
     };
 
     // Cross-reference against nearby recent reports. Agreement raises the weight
     // a report carries; disagreement lowers it. This is the cheapest possible
-    // defence against a single bad actor moving a prediction on their own.
-    const cutoff = Date.now() - 90 * 60_000;
-    for (const other of this.reports) {
-      if (other.segmentId !== report.segmentId) continue;
-      if (Date.parse(other.createdAt) < cutoff) continue;
-      if (haversineM(other.at, report.at) > 600) continue;
+    // defence against a single bad actor moving a prediction on their own — but
+    // only when it counts *distinct reporters*. Counting reports instead meant
+    // one device filing four times looked like four witnesses corroborating
+    // each other, which was the whole of the spam problem.
+    const cutoff = Date.now() - CORROBORATION_WINDOW_MIN * 60_000;
+    const nearby = this.reports.filter(
+      (other) =>
+        other.segmentId === report.segmentId &&
+        Date.parse(other.createdAt) >= cutoff &&
+        haversineM(other.at, report.at) <= CORROBORATION_RADIUS_M,
+    );
+
+    const agreeing = new Set<string>();
+    const contradicting = new Set<string>();
+
+    for (const other of nearby) {
+      // Nobody corroborates themselves, however many times they file.
+      if (other.reporterId === report.reporterId) continue;
 
       const bothSayFlooded =
         isFloodPositive(other.type) === isFloodPositive(report.type);
-      if (bothSayFlooded) {
-        other.corroborations += 1;
-        report.corroborations += 1;
-      } else {
-        other.contradictions += 1;
-        report.contradictions += 1;
-      }
+      (bothSayFlooded ? agreeing : contradicting).add(other.reporterId);
+
+      // And this reporter counts towards `other` once only, so their second
+      // report near it cannot raise the same tally again.
+      const alreadyCounted = nearby.some(
+        (prior) =>
+          prior !== other &&
+          prior.reporterId === report.reporterId &&
+          isFloodPositive(prior.type) === isFloodPositive(report.type) &&
+          haversineM(prior.at, other.at) <= CORROBORATION_RADIUS_M,
+      );
+      if (alreadyCounted) continue;
+
+      if (bothSayFlooded) other.corroborations += 1;
+      else other.contradictions += 1;
     }
+
+    report.corroborations = agreeing.size;
+    report.contradictions = contradicting.size;
 
     this.reports.push(report);
     // Keep memory bounded on long-lived instances.
     if (this.reports.length > 5000) this.reports.splice(0, 1000);
     return report;
+  }
+
+  /**
+   * Standing for a reporter, from how their previous reports held up.
+   *
+   * Keyed on the server-issued reporter id, so it survives across sessions and
+   * cannot be reset by changing a field in a request. Volume buys nothing here:
+   * the only input is whether other people confirmed or contradicted what this
+   * person said, which is why a reporter with no verdicts yet stays at the base
+   * rather than being rewarded or punished for showing up.
+   */
+  private trustFor(reporterId: string): number {
+    let corroborated = 0;
+    let contradicted = 0;
+
+    for (const report of this.reports) {
+      if (report.reporterId !== reporterId) continue;
+      corroborated += report.corroborations;
+      contradicted += report.contradictions;
+    }
+
+    const judged = corroborated + contradicted;
+    if (judged === 0) return BASE_REPORTER_TRUST;
+
+    // Move away from the base only as far as the record justifies. Three people
+    // disagreeing with somebody's first report is not proof they are unreliable
+    // — water recedes, and the first person to see a flooded road is routinely
+    // contradicted by the people who drove through ten minutes earlier. A long
+    // record decides; a couple of verdicts only nudge.
+    const record = corroborated / judged;
+    const settled = clamp(judged / 8);
+    return clamp(
+      BASE_REPORTER_TRUST + (record - BASE_REPORTER_TRUST) * settled,
+      0.2,
+      0.95,
+    );
   }
 
   async listReports(query: ReportQuery = {}): Promise<CitizenReport[]> {

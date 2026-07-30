@@ -22,6 +22,7 @@ export const en = {
   common: {
     launchApp: "Open the map",
     close: "Close",
+    closePanel: "Close panel",
     why: "Why?",
     loading: "Loading…",
     live: "Live data",
@@ -32,7 +33,9 @@ export const en = {
     now: "Now",
     min: "min",
     hr: "hr",
+    day: "d",
     cm: "cm",
+    m: "m",
     km: "km",
     people: "people",
     back: "Back",
@@ -83,6 +86,7 @@ export const en = {
     welcomeNote: "About 40 seconds. Your answers stay on this device.",
 
     skipSetup: "Skip setup",
+    keepMyAnswers: "Keep my answers",
     stepOf: "Step {n} of {total}",
 
     searchPlaceholder: "Search for an area…",
@@ -278,6 +282,51 @@ export const en = {
     rightNow: "Right now",
   },
 
+  // Keyed by `MapLayerId` so the control looks each layer up by the same id it
+  // toggles. `LAYER_META` keeps the English copy for the /api/community
+  // payload; what anybody reads on the map comes from here.
+  layers: {
+    title: "Layers",
+    floodRisk: {
+      label: "Flood risk",
+      description: "Modelled flood probability and depth for every road.",
+    },
+    waterlogging: {
+      label: "Live waterlogging",
+      description:
+        "Water reported on the ground right now, by people who are there.",
+    },
+    construction: {
+      label: "Construction",
+      description: "Roadworks, metro construction and reported potholes.",
+    },
+    congestion: {
+      label: "Congestion",
+      description: "Reported heavy traffic and breakdowns.",
+    },
+    accidents: {
+      label: "Accidents",
+      description: "Reported collisions and their lane impact.",
+    },
+    closures: {
+      label: "Road closures",
+      description: "Closures, fallen trees and downed power lines.",
+    },
+    alerts: {
+      label: "Community alerts",
+      description: "Emergency vehicles, pumping operations, all-clear reports.",
+    },
+    signalDelay: {
+      label: "Intersection delay",
+      description:
+        "AI-estimated delay at junctions. Estimated, not published signal timing.",
+    },
+    drains: {
+      label: "Trunk drains & Yamuna",
+      description: "The drainage network the city depends on.",
+    },
+  },
+
   risk: {
     safe: "Safe",
     low: "Low",
@@ -403,14 +452,27 @@ export const en = {
       "Thank you — the prediction for this road has been updated and your report is recorded against what was forecast.",
     none:
       "No reports from this road yet. Reports change the prediction immediately and are decayed over time.",
+    tooMany:
+      "Too many reports from here just now. Try again in a few minutes.",
+    failed:
+      "Could not send that report. Check your connection and try again.",
   },
 
   segment: {
+    roadDetails: "Road details",
+    hotspotBadge: "{severity} hotspot",
+    // The register grades a hotspot by how often it goes under, not how deep.
+    hotspotSeverity: {
+      chronic: "Chronic",
+      recurring: "Recurring",
+      watch: "Watch",
+    },
     floodProbability: "Flood probability",
     peakDepth: "Peak depth",
     timeToFlood: "Time to flood",
     recovery: "Recovery",
     modelledDepth: "Modelled water depth",
+    noCurve: "No depth curve available.",
     failureModes: "Failure modes",
     whatGoesWrong: "What is likely to go wrong here",
     infrastructure: "Infrastructure",
@@ -418,12 +480,22 @@ export const en = {
     elevation: "Elevation",
     slope: "Slope",
     drainCapacity: "Drain capacity",
+    percentOfDesign: "{pct}% of design",
+    drainDistance: "{distance} m away · {silt}% silted",
     floodplainExposure: "Floodplain exposure",
     basementParking: "Basement parking",
+    buildings: "buildings",
     pumpStations: "Pumping stations",
     floodHistory: "Flood history",
     recordedEvents: "Recorded events",
     register: "Waterlogging register",
+    typicalDepth: "Typically {depth} cm for about {hours} hours",
+    fromThisRoad: "From this road",
+    recentReports: "Recent reports",
+    justNow: "just now",
+    minAgo: "{n} min ago",
+    hrAgo: "{n} hr ago",
+    dayAgo: "{n} d ago",
     standingWater: "8 cm — standing water",
     impassableAt: "30 cm — impassable",
     peak: "Peak",

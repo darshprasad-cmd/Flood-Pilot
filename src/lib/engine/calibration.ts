@@ -85,6 +85,11 @@ export function computeCalibration(
       );
       absErrors.push(Math.abs(observedProbability - r.predictedProbability));
 
+      // `predictedDepthCm` is the depth that was actually shown at the time —
+      // api/reports/route.ts records `state.depthCm`, which already carries the
+      // multiplier in force then. So this ratio is an incremental residual on
+      // top of the existing correction and converges towards 1 as the model
+      // gets the road right, rather than compounding with every report.
       if (r.observedDepthCm !== null && r.predictedDepthCm > 1) {
         depthRatios.push(r.observedDepthCm / r.predictedDepthCm);
       }

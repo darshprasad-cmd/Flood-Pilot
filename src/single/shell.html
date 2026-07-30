@@ -120,6 +120,170 @@
         flex-shrink: 0; padding-bottom: max(8px, env(safe-area-inset-bottom));
       }
     </style>
+
+    <!-- ══ Intro overlay ═══════════════════════════════════════════════════
+         Owned end to end by src/single/intro.ts, and kept in its own <style>
+         so edits to the layout above and edits to the opening moment cannot
+         land on the same lines.
+
+         The load-bearing idea: every element's *base* style is its finished
+         state, and the keyframes animate into it from hidden. That inversion
+         is what makes `.intro-static` a one-line escape hatch — switch the
+         animations off and the composition is already correct, which is the
+         only thing that renders on a surface where the animation timeline
+         never advances. -->
+    <style>
+      #intro {
+        position: fixed; inset: 0; z-index: 60;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--ink-950);
+        /* Decorates the boot; never gates it. The skip button opts back in. */
+        pointer-events: none;
+      }
+      /* An id rule outranks the UA stylesheet, so `hidden` needs saying twice. */
+      #intro[hidden] { display: none; }
+
+      #intro-stage { display: flex; flex-direction: column; align-items: center; }
+      /* Fixed size so the wordmark below does not jump as the rings grow. */
+      #intro-orbit {
+        position: relative; width: 224px; height: 224px;
+        display: flex; align-items: center; justify-content: center;
+      }
+
+      /* Water leaving the source. Staggered so it reads as a sequence of waves
+         rather than one thick expanding band. */
+      .intro-ripple {
+        position: absolute; width: 128px; height: 128px; border-radius: 50%;
+        border: 1px solid rgba(47, 191, 111, 0.5);
+        opacity: 0; transform: scale(4);
+        animation: intro-ripple 2.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .intro-ripple:nth-child(1) { animation-delay: 420ms; }
+      .intro-ripple:nth-child(2) { animation-delay: 720ms; }
+      .intro-ripple:nth-child(3) { animation-delay: 1020ms; }
+      .intro-ripple:nth-child(4) { animation-delay: 1320ms; }
+
+      #intro-halo {
+        position: absolute; width: 224px; height: 224px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(47, 191, 111, 0.55), rgba(47, 191, 111, 0.06) 60%, transparent 72%);
+        filter: blur(64px);
+        opacity: 0.6; transform: scale(1.25);
+        animation: intro-halo 1.8s ease-out both;
+      }
+
+      #intro-orb {
+        position: relative; width: 70px; height: 70px; border-radius: 50%;
+        /* Lit from the upper left so it reads as a sphere, not a disc. */
+        background: radial-gradient(circle at 38% 34%, #d6f7e5, #4fd894 34%, #2fbf6f 62%, #148a4f 100%);
+        box-shadow:
+          0 0 28px 6px rgba(47, 191, 111, 0.55),
+          0 0 90px 26px rgba(47, 191, 111, 0.28),
+          inset 0 0 22px rgba(255, 255, 255, 0.28);
+        opacity: 1; transform: scale(1.06);
+        animation: intro-orb 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      /* One pass of light across the orb — the instrument checking itself. */
+      #intro-scan {
+        position: absolute; width: 160px; height: 2px; opacity: 0;
+        background: linear-gradient(90deg, transparent, rgba(214, 247, 229, 0.85), transparent);
+        animation: intro-scan 1.6s cubic-bezier(0.4, 0, 0.2, 1) 700ms both;
+      }
+
+      /* Devanagari needs a face that can actually render it — same stack as
+         #brand, for the same reason. */
+      #intro-word {
+        margin-top: -14px;
+        font-family: "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+        font-size: 44px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15;
+        animation: intro-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) 1250ms both;
+      }
+      #intro-tagline {
+        margin-top: 16px; font-size: 12.5px; letter-spacing: 0.16em;
+        text-transform: uppercase; color: var(--fg-faint); text-align: center;
+        padding: 0 24px;
+        animation: intro-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) 1850ms both;
+      }
+
+      /* Any tap anywhere already ends the intro; this is the version you can
+         see, for the people who do not know that. */
+      #intro-skip-slot {
+        position: absolute; left: 0; right: 0;
+        bottom: max(24px, env(safe-area-inset-bottom));
+        display: flex; justify-content: center; pointer-events: none;
+      }
+      #intro-skip {
+        pointer-events: auto;
+        width: auto; margin: 0; min-height: 44px; padding: 0 20px;
+        background: transparent; border: 1px solid var(--line-bright); border-radius: 999px;
+        color: var(--fg-faint); font-size: 11px; font-weight: 600;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        animation: intro-rise 0.8s ease 2200ms both;
+      }
+      #intro-skip:hover { background: transparent; color: var(--fg); border-color: var(--fg-faint); }
+
+      @keyframes intro-orb {
+        0%   { opacity: 0;    transform: scale(0.18); }
+        10%  { opacity: 0.85; transform: scale(0.5); }
+        15%  { opacity: 0.2;  transform: scale(0.47); }
+        23%  { opacity: 1;    transform: scale(0.72); }
+        29%  { opacity: 0.38; transform: scale(0.7); }
+        36%  { opacity: 1;    transform: scale(0.88); }
+        41%  { opacity: 0.66; transform: scale(0.87); }
+        52%  { opacity: 1;    transform: scale(1); }
+        100% { opacity: 1;    transform: scale(1.06); }
+      }
+      /* The glow breathes slightly out of step with the core, which is what
+         stops the whole thing reading as one flat shape pulsing. */
+      @keyframes intro-halo {
+        0%   { opacity: 0;    transform: scale(0.4); }
+        30%  { opacity: 0.5;  transform: scale(0.9); }
+        60%  { opacity: 0.85; transform: scale(1.1); }
+        100% { opacity: 0.6;  transform: scale(1.25); }
+      }
+      @keyframes intro-ripple {
+        0%   { opacity: 0.6;  transform: scale(0.3); }
+        70%  { opacity: 0.18; }
+        100% { opacity: 0;    transform: scale(4); }
+      }
+      /* The wordmark does not fade in, it surfaces — up through the blur, the
+         way the compass mark resolves out of the orb's glow. */
+      @keyframes intro-rise {
+        0%   { opacity: 0; transform: translateY(14px); filter: blur(10px); letter-spacing: 0.18em; }
+        60%  { opacity: 1; filter: blur(0); }
+        100% { opacity: 1; transform: none; filter: blur(0); letter-spacing: normal; }
+      }
+      @keyframes intro-scan {
+        0%   { opacity: 0;   transform: translateY(-140px); }
+        20%  { opacity: 0.7; }
+        80%  { opacity: 0.7; }
+        100% { opacity: 0;   transform: translateY(140px); }
+      }
+      /* Pulls very slightly toward the viewer as it goes, so the map arrives
+         rather than the overlay merely vanishing. */
+      @keyframes intro-out {
+        0%   { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.06); }
+      }
+      #intro.intro-leaving { animation: intro-out 0.7s ease-in both; }
+
+      /* No timeline. Drop every animation and let the resting styles stand —
+         plus a still fan of rings, since a ripple's resting state is spent. */
+      #intro.intro-static, #intro.intro-static * { animation: none !important; }
+      #intro.intro-static #intro-scan { opacity: 0; }
+      #intro.intro-static .intro-ripple:nth-child(1) { opacity: 0.5;  transform: scale(1.0); }
+      #intro.intro-static .intro-ripple:nth-child(2) { opacity: 0.34; transform: scale(1.55); }
+      #intro.intro-static .intro-ripple:nth-child(3) { opacity: 0.2;  transform: scale(2.1); }
+      #intro.intro-static .intro-ripple:nth-child(4) { opacity: 0.1;  transform: scale(2.65); }
+      #intro.intro-static.intro-leaving { opacity: 0; }
+
+      /* intro.ts declines before it ever reveals the overlay; this is the
+         belt to that pair of braces. */
+      @media (prefers-reduced-motion: reduce) {
+        #intro { display: none !important; }
+      }
+    </style>
+    <!-- ══ end intro overlay ═══════════════════════════════════════════ -->
   </head>
   <body>
     <div class="app">
@@ -153,6 +317,33 @@
 
       <div id="status">Starting…</div>
     </div>
+
+    <!-- ══ Intro overlay ═══════════════════════════════════════════════════
+         Markup only; src/single/intro.ts owns it. `hidden` until that module
+         decides to play, so a page where the bundle never runs shows the app
+         rather than a curtain with nothing left alive to lift it. Styles for
+         all of this are in the matching block in <head>. -->
+    <div id="intro" hidden>
+      <div id="intro-stage">
+        <div id="intro-orbit" aria-hidden="true">
+          <span class="intro-ripple"></span>
+          <span class="intro-ripple"></span>
+          <span class="intro-ripple"></span>
+          <span class="intro-ripple"></span>
+          <span id="intro-halo"></span>
+          <span id="intro-orb"></span>
+          <span id="intro-scan"></span>
+        </div>
+        <!-- The mark is a name, not a sentence: keep it out of translation
+             and out of any RTL flip. -->
+        <div id="intro-word" dir="ltr" translate="no">दिशाAI</div>
+        <div id="intro-tagline">Know the Safest Way Forward</div>
+      </div>
+      <div id="intro-skip-slot">
+        <button id="intro-skip" type="button" aria-label="Skip intro">Skip</button>
+      </div>
+    </div>
+    <!-- ══ end intro overlay ═══════════════════════════════════════════ -->
 
     <script>window.__DISHA_OSM__ = /*__OSM_JSON__*/null;</script>
     <script>/*__BUNDLE__*/</script>

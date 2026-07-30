@@ -637,8 +637,11 @@ body {
   outline: none;
 }
 
+/* Dark enough that the risk ramp stays the brightest thing on screen, but not
+   so dark that an empty map reads as a failed load. At 0.62 the basemap was
+   near-black on arrival, which is the first thing a visitor sees. */
 .leaflet-tile-pane {
-  filter: saturate(0.35) brightness(0.62) contrast(1.06);
+  filter: saturate(0.5) brightness(0.86) contrast(1.02);
 }
 
 .leaflet-control-zoom {
@@ -692,7 +695,7 @@ body {
  * readable, so the map gets its light back.
  */
 .fp-cinematic .leaflet-tile-pane {
-  filter: saturate(0.4) brightness(0.72) contrast(1.02);
+  filter: saturate(0.6) brightness(0.98) contrast(1);
 }
 
 /* Only a map nobody can drive hides its controls — a zoom button on a

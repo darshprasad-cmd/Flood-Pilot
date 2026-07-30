@@ -292,13 +292,31 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
     };
   }, []);
 
+  /**
+   * Which in-flight fetch is still allowed to write.
+   *
+   * A live scenario goes out to the weather API behind a six-second timeout; a
+   * simulated one is pure CPU and answers immediately. Switch between them and
+   * the responses arrive out of order, so the older one repaints every road and
+   * every metric underneath the newer scenario's label — the one case where this
+   * app must never be wrong. A counter rather than an AbortController because
+   * both loaders also run from the refresh interval and from a submitted report,
+   * neither of which is tied to an effect's lifetime.
+   */
+  const predictGen = useRef(0);
+  const communityGen = useRef(0);
+
   /* ── City-wide prediction ────────────────────────────────────────────── */
   const loadPrediction = useCallback(async () => {
+    const gen = ++predictGen.current;
     try {
       const res = await fetch(`/api/predict?scenario=${scenario}`);
       if (!res.ok) throw new Error(String(res.status));
-      setPredict((await res.json()) as PredictPayload);
+      const data = (await res.json()) as PredictPayload;
+      if (gen !== predictGen.current) return;
+      setPredict(data);
     } catch {
+      if (gen !== predictGen.current) return;
       setError("Could not load current flood conditions.");
     }
   }, [scenario]);
@@ -309,9 +327,13 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
 
   /* ── Community intelligence ──────────────────────────────────────────── */
   const loadCommunity = useCallback(async () => {
+    const gen = ++communityGen.current;
     try {
       const res = await fetch(`/api/community?scenario=${scenario}`);
-      if (res.ok) setCommunity((await res.json()) as CommunityPayload);
+      if (!res.ok) return;
+      const data = (await res.json()) as CommunityPayload;
+      if (gen !== communityGen.current) return;
+      setCommunity(data);
     } catch {
       // Community intelligence is additive; the app works without it.
     }
@@ -377,6 +399,20 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
   }, [scenario]);
 
   /* ── Map layers ──────────────────────────────────────────────────────── */
+
+  /**
+   * The risk-coloured roads are a layer like any other, and "Flood risk" is the
+   * switch that owns them.
+   *
+   * Withheld here rather than inside the map so the rest of the app keeps
+   * reading `predict` directly: turning the colouring off is a statement about
+   * what the map should draw, not about which roads exist — the route lines, the
+   * segment sheet and Today all stay correct.
+   */
+  const mapSegments = useMemo(
+    () => (layers.floodRisk ? (predict?.segments ?? []) : []),
+    [layers.floodRisk, predict],
+  );
 
   const routes: MapRoute[] = useMemo(() => {
     if (!brief?.comparison) return [];
@@ -658,13 +694,17 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
           )}
         </aside>
 
-        {/* Centre: map. Always mounted — it is the base layer on mobile. */}
-        <main className="absolute inset-0 lg:static lg:min-h-[320px] lg:flex-1">
+        {/* Centre: map. Always mounted — it is the base layer on mobile.
+            `z-0` is load-bearing on a phone: without a stacking context of its
+            own, main's z-20 chrome is painted against the parent, ties with the
+            full-screen panels and wins on DOM order — so the legend sat on top
+            of Today and ate taps meant for the cards underneath. */}
+        <main className="absolute inset-0 z-0 lg:static lg:z-auto lg:min-h-[320px] lg:flex-1">
           {cityData && predict ? (
             <RiskMap
               center={cityData.city.center}
               bounds={cityData.city.bounds}
-              segments={predict.segments}
+              segments={mapSegments}
               drains={cityData.drains}
               routes={routes}
               markers={markers}
@@ -835,7 +875,10 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
                 <Skeleton className="h-64" />
               )
             ) : community ? (
-              <CommunityPanel community={community} />
+              <CommunityPanel
+                community={community}
+                showSignalDelay={layers.signalDelay}
+              />
             ) : (
               <Skeleton className="h-64" />
             )}
@@ -1154,7 +1197,13 @@ function DetailToggle({
  * looking pieces: where congestion is about to appear, and which junctions are
  * costing the most time.
  */
-function CommunityPanel({ community }: { community: CommunityPayload }) {
+function CommunityPanel({
+  community,
+  showSignalDelay,
+}: {
+  community: CommunityPayload;
+  showSignalDelay: boolean;
+}) {
   return (
     <>
       <ClusterList clusters={community.clusters} />
@@ -1184,7 +1233,10 @@ function CommunityPanel({ community }: { community: CommunityPayload }) {
         </Card>
       ) : null}
 
-      {community.signalDelays.length > 0 ? (
+      {/* The "Intersection delay" layer switch has nothing on the map to draw,
+          so this list is what it governs — otherwise turning it on and off is
+          a no-op with a description promising junction estimates. */}
+      {showSignalDelay && community.signalDelays.length > 0 ? (
         <Card>
           <CardHeader
             eyebrow="AI-estimated, not published timing"

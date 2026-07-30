@@ -67,12 +67,17 @@ export function ReportSheet({
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<VerificationDto | null>(null);
+  // A report that does not arrive has to say so. The endpoint rate-limits a
+  // device to six reports in ten minutes, and somebody standing in water
+  // getting silence back would assume the report went through.
+  const [error, setError] = useState<string | null>(null);
 
   const meta = type ? REPORT_META[type] : null;
 
   const submit = async () => {
     if (!type) return;
     setBusy(true);
+    setError(null);
     try {
       const position = await currentPosition();
       const res = await fetch("/api/reports", {
@@ -98,7 +103,15 @@ export function ReportSheet({
         setLanes("");
         setDescription("");
         onReported();
+      } else {
+        // 429 is the one a real reporter will actually hit; everything else is
+        // a server fault they can only respond to by trying again.
+        setResult(null);
+        setError(res.status === 429 ? t.report.tooMany : t.report.failed);
       }
+    } catch {
+      setResult(null);
+      setError(t.report.failed);
     } finally {
       setBusy(false);
     }
@@ -109,6 +122,17 @@ export function ReportSheet({
       <CardHeader eyebrow={t.report.eyebrow} title={t.report.title} />
 
       <div className="px-4 py-3">
+        {/* Why the last submission did not land. */}
+        {error ? (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border p-3 text-[12px] leading-snug"
+            style={{ borderColor: "#f08a3c44", background: "#f08a3c0f" }}
+          >
+            {error}
+          </div>
+        ) : null}
+
         {/* Verification result from the last submission. */}
         {result ? (
           <div

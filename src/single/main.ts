@@ -12,7 +12,7 @@
  * passable, that is a bug in one shared engine rather than a difference of
  * opinion between two.
  *
- * Two things are shimmed, both at the edges:
+ * Two things are shimmed, both at the edges, and both in engine.ts:
  *
  *   - The OSM drainage layer is normally read off disk. Here it is embedded in
  *     the HTML and pushed straight into the loader's cache, so the loader
@@ -20,385 +20,137 @@
  *   - `process.env` does not exist in a browser. A stub keeps the provider
  *     resolution code, which reads env vars to decide whether IMD or CWC are
  *     configured, on its documented "not connected" path.
+ *
+ * ── The modules ────────────────────────────────────────────────────────
+ *
+ * This file is boot, state and wiring. It holds the two pieces of application
+ * state — the selected scenario and the last engine pass — and it is the only
+ * place that knows the order things happen in. Everything else is owned:
+ *
+ *   engine.ts   the only importer of `@/lib`; turns the engine into view models
+ *   map.ts      the only importer of Leaflet; draws roads, routes and camera
+ *   panels.ts   the side panel, the wordmark and the status line
+ *   i18n.ts     every user-visible string
+ *   ui.ts       shared DOM and formatting helpers
+ *   intro.ts    the opening moment; empty today
+ *   shell.html  the static layout every module attaches to
+ *
+ * The rule that keeps them apart: view models flow outward from engine.ts, and
+ * user intent flows back through this file. map.ts and panels.ts never call
+ * each other, and neither of them ever calls the engine.
  */
 
-import L from "leaflet";
-import { getCityGraph } from "@/lib/graph";
-import { runFloodEngine } from "@/lib/engine";
-import { planRoutes } from "@/lib/routing/safe-route";
-import { resolveScenario, SCENARIOS } from "@/lib/signals/scenarios";
-import { VEHICLE_CATALOG } from "@/lib/vehicles/catalog";
-import { buildVehicleProfile } from "@/lib/vehicles/survivability";
-import { RISK_META } from "@/lib/core/risk";
-import { BRAND } from "@/lib/brand";
-import type { OsmDrainageLayer } from "@/lib/signals/providers/osm";
-import type { SegmentState } from "@/lib/graph/types";
+import {
+  comparePlans,
+  getCityView,
+  listPlaces,
+  listScenarios,
+  listVehicles,
+  loadConditions,
+  type Conditions,
+} from "./engine";
+import { t } from "./i18n";
+import { startIntro } from "./intro";
+import { clearRoutes, createMap, drawRoads, drawRoutes } from "./map";
+import {
+  fillControls,
+  readJourneyInputs,
+  renderChrome,
+  renderRoadDetail,
+  renderRoutes,
+  renderRoutesNotice,
+  renderStats,
+  setStatus,
+} from "./panels";
+import { el } from "./ui";
 
-/* ── Browser shims ────────────────────────────────────────────────────── */
+/* ── State ────────────────────────────────────────────────────────────── */
 
-declare global {
-  interface Window {
-    __DISHA_OSM__?: OsmDrainageLayer;
-  }
-}
+let scenario = "live";
 
-const globalRef = globalThis as typeof globalThis & {
-  __floodpilotOsm?: Map<string, OsmDrainageLayer | null>;
-};
-
-// `process` itself is stubbed by the build's banner, which lands above module
-// initialisation — too early to do from here.
-
-// Seed the drainage cache before anything can ask for it.
-if (window.__DISHA_OSM__) {
-  globalRef.__floodpilotOsm = new Map([["delhi", window.__DISHA_OSM__]]);
-}
-
-const CITY = "delhi";
+/** The most recent engine pass, kept so a map click can be answered locally. */
+let conditions: Conditions | null = null;
 
 /* ── Boot ─────────────────────────────────────────────────────────────── */
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-
-let map: L.Map;
-let roadLayer: L.LayerGroup;
-let routeLayer: L.LayerGroup;
-let states: SegmentState[] = [];
-let scenario = "live";
-
 async function boot() {
-  const graph = getCityGraph(CITY);
+  createMap(el("map"), getCityView());
 
-  map = L.map($("map"), {
-    center: [graph.city.center.lat, graph.city.center.lng],
-    zoom: 11,
-    zoomControl: true,
-    renderer: L.svg(),
-  });
-
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 19,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
-
-  roadLayer = L.layerGroup().addTo(map);
-  routeLayer = L.layerGroup().addTo(map);
-  map.fitBounds(
-    [
-      [graph.city.bounds[0], graph.city.bounds[1]],
-      [graph.city.bounds[2], graph.city.bounds[3]],
-    ],
-    { padding: [24, 24] },
+  fillControls(
+    {
+      scenarios: listScenarios(),
+      places: listPlaces(),
+      vehicles: listVehicles(),
+      scenarioId: scenario,
+    },
+    {
+      onScenarioChange: (id) => {
+        scenario = id;
+        void refresh();
+      },
+      onPlan: () => void plan(),
+    },
   );
 
-  fillControls(graph);
   await refresh();
+
+  // Decorates a page that is already usable — never gates it.
+  startIntro();
 }
 
-function fillControls(graph: ReturnType<typeof getCityGraph>) {
-  const scenarioSel = $("scenario") as unknown as HTMLSelectElement;
-  scenarioSel.innerHTML = Object.values(SCENARIOS)
-    .map((s) => `<option value="${s.id}">${escapeHtml(s.label)}</option>`)
-    .join("");
-  scenarioSel.value = scenario;
-  scenarioSel.onchange = () => {
-    scenario = scenarioSel.value;
-    void refresh();
-  };
-
-  const nodes = [...graph.allNodes()].sort((a, b) => a.name.localeCompare(b.name));
-  const options = nodes
-    .map((n) => `<option value="${n.id}">${escapeHtml(n.name)}</option>`)
-    .join("");
-
-  const from = $("from") as unknown as HTMLSelectElement;
-  const to = $("to") as unknown as HTMLSelectElement;
-  from.innerHTML = options;
-  to.innerHTML = options;
-  from.value = "dwarka";
-  to.value = "ito";
-
-  const vehicle = $("vehicle") as unknown as HTMLSelectElement;
-  vehicle.innerHTML = [...VEHICLE_CATALOG]
-    .sort((a, b) => (b.popularInDelhi ? 1 : 0) - (a.popularInDelhi ? 1 : 0))
-    .map(
-      (v) =>
-        `<option value="${v.id}">${escapeHtml(`${v.manufacturer} ${v.model}`)} — ${v.groundClearanceMm} mm</option>`,
-    )
-    .join("");
-  vehicle.value = "swift";
-
-  $("plan").onclick = () => void plan();
-}
-
-/* ── The engine ───────────────────────────────────────────────────────── */
+/* ── One pass over the city ───────────────────────────────────────────── */
 
 async function refresh() {
-  setStatus("Reading rainfall, drains and elevation…");
-  const result = await runFloodEngine(CITY, resolveScenario(scenario));
-  states = result.states;
+  setStatus(t("status.working"));
+  conditions = await loadConditions(scenario);
 
-  drawRoads(result);
-  drawSummary(result);
-  setStatus(
-    result.bundle.degraded
-      ? "Running on open data. Official feeds are not connected in this build."
-      : "Live open data.",
-  );
+  drawRoads(conditions.roads, showRoad);
+  renderStats(conditions.summary);
+  setStatus(conditions.degraded ? t("status.degraded") : t("status.live"));
+
   await plan();
 }
 
-function drawRoads(result: Awaited<ReturnType<typeof runFloodEngine>>) {
-  roadLayer.clearLayers();
+/* ── The journey ──────────────────────────────────────────────────────── */
 
-  for (const state of result.states) {
-    const segment = result.graph.getSegment(state.segmentId);
-    if (!segment) continue;
+/**
+ * Routing runs against a fresh engine pass rather than the one `refresh` just
+ * stored, because the plan button can be pressed long after the map was drawn.
+ * The engine caches for 45 seconds, so the common case costs nothing and a
+ * stale one is recomputed.
+ */
+async function plan() {
+  const current = await loadConditions(scenario);
+  const inputs = readJourneyInputs();
 
-    const path = segment.geometry.map((p) => [p.lat, p.lng] as [number, number]);
-    const risky = state.floodProbability > 0.35 && state.peakDepthCm > 5;
-    const weight = risky ? 5 + Math.min(3, state.peakDepthCm / 25) : 3;
-
-    L.polyline(path, {
-      color: "#05070b",
-      weight: weight + 4,
-      opacity: 0.55,
-      interactive: false,
-    }).addTo(roadLayer);
-
-    L.polyline(path, {
-      color: RISK_META[state.riskLevel].color,
-      weight,
-      opacity: risky ? 0.95 : 0.62,
-      lineCap: "round",
-      dashArray: segment.isUnderpass ? "1 7" : undefined,
-    })
-      .bindTooltip(
-        `<strong>${escapeHtml(segment.name)}</strong><br/>${Math.round(
-          state.floodProbability * 100,
-        )}% · ${state.peakDepthCm.toFixed(0)} cm peak`,
-        { sticky: true, direction: "top" },
-      )
-      .on("click", () => showRoad(state.segmentId))
-      .addTo(roadLayer);
+  if (inputs.fromId === inputs.toId) {
+    renderRoutesNotice("same-points");
+    return;
   }
-}
 
-function drawSummary(result: Awaited<ReturnType<typeof runFloodEngine>>) {
-  const atRisk = result.states.filter(
-    (s) => s.peakDepthCm >= 8 && s.floodProbability >= 0.35,
-  ).length;
-  const impassable = result.states.filter((s) => s.timeToImpassableMin !== null).length;
-  const deepest = Math.max(0, ...result.states.map((s) => s.peakDepthCm));
+  const journey = comparePlans(current, inputs);
+  clearRoutes();
 
-  $("stats").innerHTML = [
-    stat("Roads at risk", String(atRisk), atRisk > 0 ? "#f08a3c" : "#2fbf6f"),
-    stat("Impassable", String(impassable), impassable > 0 ? "#e8503a" : "#2fbf6f"),
-    stat("Deepest", `${deepest.toFixed(0)} cm`),
-  ].join("");
+  if (!journey) {
+    renderRoutesNotice("no-route");
+    return;
+  }
+
+  drawRoutes(journey);
+  renderRoutes(journey);
 }
 
 function showRoad(segmentId: string) {
-  const graph = getCityGraph(CITY);
-  const segment = graph.getSegment(segmentId);
-  const state = states.find((s) => s.segmentId === segmentId);
-  if (!segment || !state) return;
-
-  $("detail").innerHTML = `
-    <p class="eyebrow">${escapeHtml(segment.corridor)}</p>
-    <h3>${escapeHtml(segment.name)}</h3>
-    <div class="row">
-      <span>Flood probability</span><b>${Math.round(state.floodProbability * 100)}%</b>
-    </div>
-    <div class="row"><span>Peak depth</span><b>${state.peakDepthCm.toFixed(0)} cm</b></div>
-    <div class="row"><span>Time to flood</span><b>${
-      state.timeToFloodMin === null ? "—" : `${state.timeToFloodMin} min`
-    }</b></div>
-    <div class="row"><span>Recovery</span><b>${
-      state.recoveryMin === null ? "—" : `${Math.round(state.recoveryMin / 60)} hr`
-    }</b></div>
-    <div class="row"><span>Elevation</span><b>${segment.elevationM.toFixed(1)} m</b></div>
-    ${
-      state.blockages.length
-        ? `<p class="eyebrow" style="margin-top:14px">What goes wrong here</p>` +
-          state.blockages
-            .slice(0, 3)
-            .map(
-              (b) =>
-                `<div class="blockage"><b>${escapeHtml(b.label)}</b><span>${escapeHtml(
-                  b.basis,
-                )}</span></div>`,
-            )
-            .join("")
-        : ""
-    }`;
-  $("detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const road = conditions?.roads.find((r) => r.id === segmentId);
+  if (!road) return;
+  renderRoadDetail(road);
 }
 
-/* ── Routing ──────────────────────────────────────────────────────────── */
+/* ── Start ────────────────────────────────────────────────────────────── */
 
-async function plan() {
-  const graph = getCityGraph(CITY);
-  const result = await runFloodEngine(CITY, resolveScenario(scenario));
-
-  const from = ($("from") as unknown as HTMLSelectElement).value;
-  const to = ($("to") as unknown as HTMLSelectElement).value;
-  if (from === to) {
-    $("routes").innerHTML = `<p class="muted">Pick two different points.</p>`;
-    return;
-  }
-
-  const catalogId = ($("vehicle") as unknown as HTMLSelectElement).value;
-  const entry = VEHICLE_CATALOG.find((v) => v.id === catalogId) ?? null;
-  const vehicle = entry
-    ? buildVehicleProfile({
-        id: entry.id,
-        manufacturer: entry.manufacturer,
-        model: entry.model,
-        year: 2021,
-        bodyType: entry.bodyType,
-        groundClearanceMm: entry.groundClearanceMm,
-        tyreType: "standard",
-        driveType: entry.driveType,
-        fuelType: entry.fuelTypes[0],
-      })
-    : null;
-
-  const comparison = planRoutes(graph, result.predictions, {
-    cityId: CITY,
-    originNodeId: from,
-    destinationNodeId: to,
-    vehicle,
-    departInMin: 0,
-  });
-
-  routeLayer.clearLayers();
-
-  if (!comparison) {
-    $("routes").innerHTML = `<p class="muted">No route could be planned between these two junctions.</p>`;
-    return;
-  }
-
-  const geometryOf = (legs: { geometry: { lat: number; lng: number }[] }[]) =>
-    legs.flatMap((leg, i) =>
-      (i ? leg.geometry.slice(1) : leg.geometry).map(
-        (p) => [p.lat, p.lng] as [number, number],
-      ),
-    );
-
-  if (!comparison.identical) {
-    L.polyline(geometryOf(comparison.fastest.legs), {
-      color: "#f08a3c",
-      weight: 4,
-      dashArray: "12 10",
-      opacity: 0.9,
-      interactive: false,
-    }).addTo(routeLayer);
-  }
-  L.polyline(geometryOf(comparison.safest.legs), {
-    color: comparison.safeRouteExists ? "#2fbf6f" : "#e8503a",
-    weight: 6,
-    opacity: 0.95,
-    interactive: false,
-  }).addTo(routeLayer);
-
-  $("routes").innerHTML = `
-    ${routeCard("What a maps app gives you", comparison.fastest, "#f08a3c")}
-    ${routeCard(
-      comparison.safeRouteExists ? "What दिशाAI recommends" : "Least dangerous route",
-      comparison.safest,
-      comparison.safeRouteExists ? "#2fbf6f" : "#e8503a",
-    )}
-    ${
-      comparison.identical
-        ? `<p class="muted">${
-            comparison.safeRouteExists
-              ? "Both searches picked the same roads. There is no safer alternative to trade time for, which is good news."
-              : "Both searches picked the same roads because every alternative is worse. Changing route cannot fix this journey."
-          }</p>`
-        : `<p class="muted">${describeTrade(comparison)}</p>`
-    }`;
-}
-
-/**
- * Why the recommended route is worth the extra minutes.
- *
- * Max depth is only one of the things Safe Route Score weighs — underpasses,
- * onset timing and the depth at the moment you would actually arrive all count
- * — so the safer route can legitimately have a slightly higher peak. Claiming
- * it avoids "0 cm of water" in that case is worse than saying nothing.
- */
-function describeTrade(comparison: {
-  extraMinutes: number;
-  depthReduction: number;
-  riskReduction: number;
-  fastest: { underpassCount: number };
-  safest: { underpassCount: number };
-}) {
-  const extra = Math.round(comparison.extraMinutes);
-  const depth = Math.round(comparison.depthReduction);
-  const underpasses = comparison.fastest.underpassCount - comparison.safest.underpassCount;
-
-  if (depth >= 1) return `${extra} minutes more to avoid ${depth} cm of water.`;
-  if (underpasses > 0) {
-    return `${extra} minutes more to avoid ${underpasses} underpass${
-      underpasses === 1 ? "" : "es"
-    }.`;
-  }
-  if (comparison.riskReduction > 0) {
-    return `${extra} minutes more for a measurably lower-risk route.`;
-  }
-  return `The recommended route costs ${extra} minutes more.`;
-}
-
-function routeCard(
-  title: string,
-  route: {
-    durationMin: number;
-    maxDepthCm: number;
-    underpassCount: number;
-    impassableCount: number;
-    legs: unknown[];
-  },
-  color: string,
-) {
-  return `<div class="route" style="border-color:${color}55">
-    <p class="eyebrow" style="color:${color}">${escapeHtml(title)}</p>
-    <div class="row"><span>Time</span><b>${Math.round(route.durationMin)} min</b></div>
-    <div class="row"><span>Deepest water</span><b>${Math.round(route.maxDepthCm)} cm</b></div>
-    <div class="row"><span>Underpasses</span><b>${route.underpassCount}</b></div>
-    ${
-      route.impassableCount > 0
-        ? `<div class="row impassable"><span>Impassable stretches</span><b>${route.impassableCount}</b></div>`
-        : ""
-    }
-  </div>`;
-}
-
-/* ── Bits ─────────────────────────────────────────────────────────────── */
-
-const stat = (label: string, value: string, color = "#e9eef7") =>
-  `<div class="stat"><span>${escapeHtml(label)}</span><b style="color:${color}">${escapeHtml(
-    value,
-  )}</b></div>`;
-
-function setStatus(text: string) {
-  $("status").textContent = text;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-$("brand").textContent = BRAND.name;
-$("tagline").textContent = BRAND.tagline;
+renderChrome();
 
 boot().catch((error) => {
   console.error(error);
-  setStatus(`Could not start: ${String(error)}`);
+  setStatus(t("status.failed", { error: String(error) }));
 });

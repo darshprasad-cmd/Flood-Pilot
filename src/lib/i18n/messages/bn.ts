@@ -18,6 +18,7 @@ export const bn: Messages = {
   common: {
     launchApp: "মানচিত্র খুলুন",
     close: "বন্ধ করুন",
+    closePanel: "প্যানেল বন্ধ করুন",
     why: "কেন?",
     loading: "লোড হচ্ছে…",
     live: "সরাসরি তথ্য",
@@ -28,7 +29,9 @@ export const bn: Messages = {
     now: "এখন",
     min: "মিনিট",
     hr: "ঘণ্টা",
+    day: "দিন",
     cm: "সেমি",
+    m: "মি",
     km: "কিমি",
     people: "মানুষ",
     back: "পিছনে",
@@ -79,6 +82,7 @@ export const bn: Messages = {
     welcomeNote: "প্রায় ৪০ সেকেন্ড। আপনার উত্তর এই ডিভাইসেই থাকে।",
 
     skipSetup: "সেটআপ এড়িয়ে যান",
+    keepMyAnswers: "আমার উত্তরগুলো একই রাখুন",
     stepOf: "ধাপ {n} / {total}",
 
     searchPlaceholder: "এলাকা খুঁজুন…",
@@ -273,6 +277,47 @@ export const bn: Messages = {
     rightNow: "এই মুহূর্তে",
   },
 
+  layers: {
+    title: "স্তর",
+    floodRisk: {
+      label: "বন্যার ঝুঁকি",
+      description: "প্রতিটি রাস্তার জন্য অনুমিত বন্যার সম্ভাবনা ও গভীরতা।",
+    },
+    waterlogging: {
+      label: "সরাসরি জল জমা",
+      description: "ঘটনাস্থলে থাকা মানুষের এখনই জানানো জল।",
+    },
+    construction: {
+      label: "নির্মাণকাজ",
+      description: "রাস্তার কাজ, মেট্রোর নির্মাণ ও জানানো খানাখন্দ।",
+    },
+    congestion: {
+      label: "যানজট",
+      description: "জানানো ভারী যানজট ও বিকল গাড়ি।",
+    },
+    accidents: {
+      label: "দুর্ঘটনা",
+      description: "জানানো সংঘর্ষ ও তাতে বন্ধ হওয়া লেন।",
+    },
+    closures: {
+      label: "রাস্তা বন্ধ",
+      description: "বন্ধ রাস্তা, পড়ে যাওয়া গাছ ও ছিঁড়ে পড়া বিদ্যুতের তার।",
+    },
+    alerts: {
+      label: "কমিউনিটির সতর্কতা",
+      description: "জরুরি গাড়ি, পাম্পিংয়ের কাজ, সব ঠিক থাকার রিপোর্ট।",
+    },
+    signalDelay: {
+      label: "মোড়ে দেরি",
+      description:
+        "মোড়ে AI-অনুমিত দেরি। এটি অনুমান, প্রকাশিত সিগন্যাল সময় নয়।",
+    },
+    drains: {
+      label: "প্রধান নালা ও যমুনা",
+      description: "যে নিকাশি ব্যবস্থার উপর শহর নির্ভর করে।",
+    },
+  },
+
   risk: {
     safe: "নিরাপদ",
     low: "কম",
@@ -398,14 +443,26 @@ export const bn: Messages = {
       "ধন্যবাদ — এই রাস্তার পূর্বাভাস হালনাগাদ হয়েছে এবং আপনার রিপোর্ট পূর্বাভাসের বিপরীতে নথিভুক্ত হয়েছে।",
     none:
       "এই রাস্তা থেকে এখনও কোনও রিপোর্ট নেই। রিপোর্টে পূর্বাভাস সঙ্গে সঙ্গে বদলায় এবং সময়ের সঙ্গে তার প্রভাব কমে।",
+    tooMany:
+      "এখান থেকে এইমাত্র অনেক রিপোর্ট এসেছে। কয়েক মিনিট পরে আবার চেষ্টা করুন।",
+    failed:
+      "রিপোর্ট পাঠানো গেল না। আপনার সংযোগ দেখে আবার চেষ্টা করুন।",
   },
 
   segment: {
+    roadDetails: "রাস্তার বিবরণ",
+    hotspotBadge: "জলাবদ্ধতার স্থান — {severity}",
+    hotspotSeverity: {
+      chronic: "দীর্ঘদিনের",
+      recurring: "বারবার",
+      watch: "নজরে",
+    },
     floodProbability: "বন্যার সম্ভাবনা",
     peakDepth: "সর্বোচ্চ গভীরতা",
     timeToFlood: "জল জমতে সময়",
     recovery: "জল নামতে",
     modelledDepth: "অনুমিত জলের গভীরতা",
+    noCurve: "গভীরতার লেখচিত্র নেই।",
     failureModes: "বিপর্যয়ের ধরন",
     whatGoesWrong: "এখানে কী ভুল হওয়ার আশঙ্কা",
     infrastructure: "পরিকাঠামো",
@@ -413,12 +470,22 @@ export const bn: Messages = {
     elevation: "উচ্চতা",
     slope: "ঢাল",
     drainCapacity: "নালার ক্ষমতা",
+    percentOfDesign: "ধারণক্ষমতার {pct}%",
+    drainDistance: "{distance} মি দূরে · {silt}% পলি",
     floodplainExposure: "প্লাবনভূমিতে অবস্থান",
     basementParking: "বেসমেন্ট পার্কিং",
+    buildings: "ভবন",
     pumpStations: "পাম্পিং স্টেশন",
     floodHistory: "বন্যার ইতিহাস",
     recordedEvents: "নথিভুক্ত ঘটনা",
     register: "জলাবদ্ধতা রেজিস্টার",
+    typicalDepth: "সাধারণত {depth} সেমি, প্রায় {hours} ঘণ্টা",
+    fromThisRoad: "এই রাস্তা থেকে",
+    recentReports: "সাম্প্রতিক রিপোর্ট",
+    justNow: "এইমাত্র",
+    minAgo: "{n} মিনিট আগে",
+    hrAgo: "{n} ঘণ্টা আগে",
+    dayAgo: "{n} দিন আগে",
     standingWater: "৮ সেমি — জল জমা",
     impassableAt: "৩০ সেমি — চলাচলের অযোগ্য",
     peak: "সর্বোচ্চ",

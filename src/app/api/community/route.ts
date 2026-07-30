@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_CITY_ID, cityExists } from "@/lib/cities/registry";
 import { clusterReports } from "@/lib/community/clustering";
-import { LAYER_META, MAP_LAYERS, REPORT_META, REPORT_TYPES } from "@/lib/community/types";
+import {
+  LAYER_META,
+  MAP_LAYERS,
+  REPORT_META,
+  REPORT_TYPES,
+  publishedReport,
+} from "@/lib/community/types";
 import { verifyReport } from "@/lib/community/verification";
 import { getStore } from "@/lib/db";
 import { runFloodEngine } from "@/lib/engine";
@@ -54,8 +60,10 @@ export async function GET(request: Request) {
 
     /* Per-report verification for the ones shown individually ------------ */
     const recent = reports.slice(0, 60);
+    // `publishedReport` and not the raw row: the reporter id is a stable device
+    // identity, and this list pairs it with a coordinate and a timestamp.
     const verified = recent.map((report) => ({
-      report,
+      report: publishedReport(report),
       verification: verifyReport({
         report,
         neighbours: reports,

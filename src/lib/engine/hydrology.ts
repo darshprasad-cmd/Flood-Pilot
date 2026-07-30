@@ -34,6 +34,13 @@ export interface PondingParams {
   drainCapacityIndex: number;
   /** How much of the arriving water actually stands here versus flowing on. */
   pondingFactor: number;
+  /**
+   * Learned per-segment depth correction from verified outcomes. It is a model
+   * parameter rather than a presentation tweak, because everything downstream —
+   * onset timing, the impassable crossing, the curve routing reads — has to be
+   * on the same scale as the depth the user is shown.
+   */
+  depthMultiplier: number;
   /** Gravity drainage rate, per hour. */
   recessionPerHr: number;
   maxDepthCm: number;
@@ -44,6 +51,7 @@ export function pondingParams(
   wetnessIndex: number,
   lowness: number,
   effectiveDrainCapacity: number,
+  depthMultiplier: number,
 ): PondingParams {
   // Saturated ground stops absorbing, so the same rain produces far more runoff.
   const runoffCoefficient = clamp(
@@ -73,6 +81,7 @@ export function pondingParams(
     catchmentGain,
     drainCapacityIndex: effectiveDrainCapacity,
     pondingFactor,
+    depthMultiplier,
     recessionPerHr,
     maxDepthCm: segment.isUnderpass ? MAX_DEPTH_CM_UNDERPASS : MAX_DEPTH_CM_ROAD,
   };
@@ -121,8 +130,14 @@ export function simulateHydrograph(
   // Warm-up: the hour already behind us.
   for (let i = 0; i < 4; i++) advance(currentRainMmHr);
 
+  // Calibration multiplies inside the cap, not after it. A road that can only
+  // hold 120 cm still only holds 120 cm however badly past predictions here
+  // undershot; scaling the capped depth afterwards would report 240 cm.
   const toDepthCm = (mm: number) =>
-    Math.min(params.maxDepthCm, (mm * params.pondingFactor) / 10);
+    Math.min(
+      params.maxDepthCm,
+      (mm * params.pondingFactor * params.depthMultiplier) / 10,
+    );
 
   const currentDepthCm = toDepthCm(ponded);
 

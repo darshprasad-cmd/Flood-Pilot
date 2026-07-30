@@ -19,6 +19,7 @@ export const pa: Messages = {
   common: {
     launchApp: "ਨਕਸ਼ਾ ਖੋਲ੍ਹੋ",
     close: "ਬੰਦ ਕਰੋ",
+    closePanel: "ਪੈਨਲ ਬੰਦ ਕਰੋ",
     why: "ਕਿਉਂ?",
     loading: "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
     live: "ਲਾਈਵ ਡਾਟਾ",
@@ -29,7 +30,9 @@ export const pa: Messages = {
     now: "ਹੁਣ",
     min: "ਮਿੰਟ",
     hr: "ਘੰਟੇ",
+    day: "ਦਿਨ",
     cm: "ਸੈਮੀ",
+    m: "ਮੀ",
     km: "ਕਿਮੀ",
     people: "ਲੋਕ",
     back: "ਪਿੱਛੇ",
@@ -80,6 +83,7 @@ export const pa: Messages = {
     welcomeNote: "ਕਰੀਬ 40 ਸਕਿੰਟ। ਤੁਹਾਡੇ ਜਵਾਬ ਇਸੇ ਫ਼ੋਨ ਵਿੱਚ ਰਹਿੰਦੇ ਹਨ।",
 
     skipSetup: "ਸੈੱਟਅੱਪ ਛੱਡੋ",
+    keepMyAnswers: "ਮੇਰੇ ਜਵਾਬ ਉਵੇਂ ਹੀ ਰੱਖੋ",
     stepOf: "ਕਦਮ {n} / {total}",
 
     searchPlaceholder: "ਇਲਾਕਾ ਲੱਭੋ…",
@@ -274,6 +278,47 @@ export const pa: Messages = {
     rightNow: "ਇਸ ਵੇਲੇ",
   },
 
+  layers: {
+    title: "ਪਰਤਾਂ",
+    floodRisk: {
+      label: "ਹੜ੍ਹ ਦਾ ਖ਼ਤਰਾ",
+      description: "ਹਰ ਸੜਕ ਲਈ ਅਨੁਮਾਨਿਤ ਹੜ੍ਹ ਸੰਭਾਵਨਾ ਅਤੇ ਡੂੰਘਾਈ।",
+    },
+    waterlogging: {
+      label: "ਲਾਈਵ ਪਾਣੀ ਭਰਨਾ",
+      description: "ਮੌਕੇ ਉੱਤੇ ਮੌਜੂਦ ਲੋਕਾਂ ਵੱਲੋਂ ਹੁਣੇ ਦੱਸਿਆ ਗਿਆ ਪਾਣੀ।",
+    },
+    construction: {
+      label: "ਉਸਾਰੀ",
+      description: "ਸੜਕ ਦਾ ਕੰਮ, ਮੈਟਰੋ ਦੀ ਉਸਾਰੀ ਅਤੇ ਦੱਸੇ ਗਏ ਟੋਏ।",
+    },
+    congestion: {
+      label: "ਜਾਮ",
+      description: "ਦੱਸਿਆ ਗਿਆ ਭਾਰੀ ਟ੍ਰੈਫ਼ਿਕ ਅਤੇ ਬੰਦ ਪਈਆਂ ਗੱਡੀਆਂ।",
+    },
+    accidents: {
+      label: "ਹਾਦਸੇ",
+      description: "ਦੱਸੀਆਂ ਗਈਆਂ ਟੱਕਰਾਂ ਅਤੇ ਉਹਨਾਂ ਨਾਲ ਬੰਦ ਹੋਈਆਂ ਲੇਨਾਂ।",
+    },
+    closures: {
+      label: "ਸੜਕ ਬੰਦੀ",
+      description: "ਬੰਦੀਆਂ, ਡਿੱਗੇ ਹੋਏ ਦਰੱਖ਼ਤ ਅਤੇ ਟੁੱਟੀਆਂ ਬਿਜਲੀ ਦੀਆਂ ਤਾਰਾਂ।",
+    },
+    alerts: {
+      label: "ਭਾਈਚਾਰੇ ਦੀਆਂ ਚੇਤਾਵਨੀਆਂ",
+      description: "ਐਮਰਜੈਂਸੀ ਗੱਡੀਆਂ, ਪੰਪਿੰਗ ਦਾ ਕੰਮ, ਸਭ ਠੀਕ ਹੋਣ ਦੀਆਂ ਰਿਪੋਰਟਾਂ।",
+    },
+    signalDelay: {
+      label: "ਚੌਕ ਵਿੱਚ ਦੇਰੀ",
+      description:
+        "ਚੌਕਾਂ ਉੱਤੇ AI ਤੋਂ ਅਨੁਮਾਨਿਤ ਦੇਰੀ। ਇਹ ਅਨੁਮਾਨ ਹੈ, ਪ੍ਰਕਾਸ਼ਿਤ ਸਿਗਨਲ ਸਮਾਂ ਨਹੀਂ।",
+    },
+    drains: {
+      label: "ਵੱਡੇ ਨਾਲੇ ਅਤੇ ਜਮੁਨਾ",
+      description: "ਉਹ ਨਿਕਾਸੀ ਢਾਂਚਾ ਜਿਸ ਉੱਤੇ ਸ਼ਹਿਰ ਟਿਕਿਆ ਹੋਇਆ ਹੈ।",
+    },
+  },
+
   risk: {
     safe: "ਸੁਰੱਖਿਅਤ",
     low: "ਘੱਟ",
@@ -399,14 +444,26 @@ export const pa: Messages = {
       "ਧੰਨਵਾਦ — ਇਸ ਸੜਕ ਦੀ ਭਵਿੱਖਬਾਣੀ ਅੱਪਡੇਟ ਕਰ ਦਿੱਤੀ ਗਈ ਹੈ ਅਤੇ ਤੁਹਾਡੀ ਰਿਪੋਰਟ ਦਰਜ ਕਰ ਲਈ ਗਈ ਹੈ।",
     none:
       "ਇਸ ਸੜਕ ਤੋਂ ਹਾਲੇ ਕੋਈ ਰਿਪੋਰਟ ਨਹੀਂ। ਰਿਪੋਰਟ ਨਾਲ ਭਵਿੱਖਬਾਣੀ ਤੁਰੰਤ ਬਦਲਦੀ ਹੈ ਅਤੇ ਸਮੇਂ ਨਾਲ ਉਸਦਾ ਅਸਰ ਘਟਦਾ ਹੈ।",
+    tooMany:
+      "ਹੁਣੇ ਇੱਥੋਂ ਬਹੁਤ ਸਾਰੀਆਂ ਰਿਪੋਰਟਾਂ ਆ ਚੁੱਕੀਆਂ ਹਨ। ਕੁਝ ਮਿੰਟਾਂ ਬਾਅਦ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    failed:
+      "ਰਿਪੋਰਟ ਭੇਜੀ ਨਹੀਂ ਜਾ ਸਕੀ। ਆਪਣਾ ਕਨੈਕਸ਼ਨ ਜਾਂਚੋ ਅਤੇ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
   },
 
   segment: {
+    roadDetails: "ਸੜਕ ਦਾ ਵੇਰਵਾ",
+    hotspotBadge: "ਪਾਣੀ ਭਰਨ ਵਾਲੀ ਥਾਂ — {severity}",
+    hotspotSeverity: {
+      chronic: "ਪੁਰਾਣੀ",
+      recurring: "ਵਾਰ-ਵਾਰ",
+      watch: "ਨਿਗਰਾਨੀ ਹੇਠ",
+    },
     floodProbability: "ਹੜ੍ਹ ਦੀ ਸੰਭਾਵਨਾ",
     peakDepth: "ਵੱਧ ਤੋਂ ਵੱਧ ਡੂੰਘਾਈ",
     timeToFlood: "ਪਾਣੀ ਭਰਨ ਵਿੱਚ ਸਮਾਂ",
     recovery: "ਪਾਣੀ ਉਤਰਨ ਵਿੱਚ",
     modelledDepth: "ਅਨੁਮਾਨਿਤ ਪਾਣੀ ਦੀ ਡੂੰਘਾਈ",
+    noCurve: "ਡੂੰਘਾਈ ਦਾ ਗ੍ਰਾਫ਼ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
     failureModes: "ਨਾਕਾਮੀ ਦੇ ਤਰੀਕੇ",
     whatGoesWrong: "ਇੱਥੇ ਕੀ ਗ਼ਲਤ ਹੋਣ ਦਾ ਖ਼ਦਸ਼ਾ ਹੈ",
     infrastructure: "ਬੁਨਿਆਦੀ ਢਾਂਚਾ",
@@ -414,12 +471,22 @@ export const pa: Messages = {
     elevation: "ਉਚਾਈ",
     slope: "ਢਲਾਣ",
     drainCapacity: "ਨਾਲੇ ਦੀ ਸਮਰੱਥਾ",
+    percentOfDesign: "ਸਮਰੱਥਾ ਦਾ {pct}%",
+    drainDistance: "{distance} ਮੀ ਦੂਰ · {silt}% ਗਾਦ",
     floodplainExposure: "ਹੜ੍ਹ ਖੇਤਰ ਵਿੱਚ ਸਥਿਤੀ",
     basementParking: "ਬੇਸਮੈਂਟ ਪਾਰਕਿੰਗ",
+    buildings: "ਇਮਾਰਤਾਂ",
     pumpStations: "ਪੰਪਿੰਗ ਸਟੇਸ਼ਨ",
     floodHistory: "ਹੜ੍ਹ ਦਾ ਇਤਿਹਾਸ",
     recordedEvents: "ਦਰਜ ਘਟਨਾਵਾਂ",
     register: "ਪਾਣੀ ਭਰਨ ਦਾ ਰਜਿਸਟਰ",
+    typicalDepth: "ਆਮ ਤੌਰ ਉੱਤੇ {depth} ਸੈਮੀ, ਲਗਭਗ {hours} ਘੰਟੇ",
+    fromThisRoad: "ਇਸੇ ਸੜਕ ਤੋਂ",
+    recentReports: "ਹਾਲੀਆ ਰਿਪੋਰਟਾਂ",
+    justNow: "ਹੁਣੇ-ਹੁਣੇ",
+    minAgo: "{n} ਮਿੰਟ ਪਹਿਲਾਂ",
+    hrAgo: "{n} ਘੰਟੇ ਪਹਿਲਾਂ",
+    dayAgo: "{n} ਦਿਨ ਪਹਿਲਾਂ",
     standingWater: "8 ਸੈਮੀ — ਪਾਣੀ ਜਮ੍ਹਾਂ",
     impassableAt: "30 ਸੈਮੀ — ਲੰਘਣਯੋਗ ਨਹੀਂ",
     peak: "ਵੱਧ ਤੋਂ ਵੱਧ",

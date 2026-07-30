@@ -264,6 +264,11 @@ export const REPORT_META: Record<ReportType, ReportTypeMeta> = {
 /*  Map layers                                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Every entry here must have something that actually draws it. A switch whose
+ * only effect is to change the count next to the word "Layers" is worse than a
+ * missing feature — it tells somebody they have turned a hazard off.
+ */
 export const MAP_LAYERS = [
   "floodRisk",
   "waterlogging",
@@ -272,7 +277,6 @@ export const MAP_LAYERS = [
   "accidents",
   "closures",
   "alerts",
-  "government",
   "signalDelay",
   "drains",
 ] as const;
@@ -288,6 +292,12 @@ export interface MapLayerMeta {
   description: string;
 }
 
+/**
+ * The English copy lives here because this map is serialised to clients by
+ * /api/community, which has no locale to answer in. What the layers control
+ * actually shows comes from the dictionary under the same ids, so a layer added
+ * here needs its `layers.<id>` entry adding there in the same change.
+ */
 export const LAYER_META: Record<MapLayerId, MapLayerMeta> = {
   floodRisk: {
     id: "floodRisk",
@@ -338,13 +348,6 @@ export const LAYER_META: Record<MapLayerId, MapLayerMeta> = {
     defaultOn: true,
     description: "Emergency vehicles, pumping operations, all-clear reports.",
   },
-  government: {
-    id: "government",
-    label: "Government alerts",
-    colour: "#8fc93a",
-    defaultOn: true,
-    description: "Official advisories from IMD, CWC and DDMA where connected.",
-  },
   signalDelay: {
     id: "signalDelay",
     label: "Intersection delay",
@@ -393,6 +396,26 @@ export type NewCommunityReport = Omit<
   CommunityReport,
   "id" | "createdAt" | "corroborations" | "contradictions" | "reporterTrust"
 > & { reporterTrust?: number };
+
+/** A report as it leaves the server. */
+export type PublishedReport = Omit<CommunityReport, "reporterId">;
+
+/**
+ * Strip the reporter id from a report before it is served.
+ *
+ * The id never leaves the server — not even to the person it belongs to. It is
+ * a stable device identity, and served next to a coordinate and a timestamp it
+ * is a location trace: that is why it lives in an httpOnly cookie, and why
+ * returning it in a response body would hand it straight back to page script.
+ *
+ * This lives here rather than in one route because every endpoint that serves
+ * reports has to do it — /api/reports on POST and GET, /api/community in the
+ * per-report verification list — and a single one forgetting is the whole leak.
+ */
+export function publishedReport(report: CommunityReport): PublishedReport {
+  const { reporterId: _reporterId, ...rest } = report;
+  return rest;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Verification                                                              */
