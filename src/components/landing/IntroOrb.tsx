@@ -106,7 +106,7 @@ export default function IntroOrb() {
       // Pointer-transparent from the first frame: the listener above already
       // catches the tap, and nothing here should ever swallow a click meant
       // for the page it is sitting on top of.
-      className={`pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-ink-950 ${
+      className={`safe-top safe-bottom pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-ink-950 ${
         phase === "leaving" ? "animate-intro-out" : ""
       }`}
       aria-hidden

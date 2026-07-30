@@ -92,7 +92,7 @@ export function AlertSheet({
         className="absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
       />
 
-      <div className="animate-rise relative flex h-full w-full max-w-[420px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
+      <div className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[420px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <h2 className="flex-1 text-sm font-semibold">{t.alerts.title}</h2>
           <button

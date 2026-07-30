@@ -115,8 +115,10 @@ export default function LandingExperience() {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
+          // Lighter than it was: enough to seat the lockup, not so much that
+          // the city it is sitting on disappears.
           background:
-            "radial-gradient(130% 100% at 50% -10%, transparent 24%, rgba(5,7,11,0.5) 60%, rgba(5,7,11,0.92) 100%)",
+            "radial-gradient(130% 100% at 50% -10%, transparent 30%, rgba(5,7,11,0.32) 62%, rgba(5,7,11,0.8) 100%)",
         }}
         aria-hidden
       />

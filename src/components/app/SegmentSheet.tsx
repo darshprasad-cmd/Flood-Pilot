@@ -150,7 +150,7 @@ export function SegmentSheet({
         className="absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
       />
 
-      <div className="animate-rise relative flex h-full w-full max-w-[460px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
+      <div className="animate-rise safe-top safe-bottom relative flex h-full w-full max-w-[460px] flex-col border-l border-line-bright bg-ink-900 shadow-2xl">
         {!detail ? (
           <div className="space-y-3 p-4">
             <Skeleton className="h-8" />

@@ -256,8 +256,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
+          // Kept off the middle of the frame so the flight into the city is
+          // watchable; the weight sits at the edges where the cards live.
           background:
-            "radial-gradient(120% 90% at 50% 0%, transparent 20%, rgba(5,7,11,0.55) 62%, rgba(5,7,11,0.9) 100%)",
+            "radial-gradient(120% 90% at 50% 0%, transparent 28%, rgba(5,7,11,0.34) 64%, rgba(5,7,11,0.82) 100%)",
         }}
         aria-hidden
       />

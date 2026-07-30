@@ -134,6 +134,53 @@ body {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  iOS                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `dvh` is iOS 15.4 and later. On anything older every full-height surface —
+ * the app shell, the onboarding, the landing — collapses to nothing, which is
+ * a blank screen rather than a degraded one.
+ */
+@supports not (height: 100dvh) {
+  .h-dvh {
+    height: 100vh;
+    /* Closer to the truth than 100vh on iOS, which measures past the toolbar. */
+    height: -webkit-fill-available;
+  }
+  .min-h-dvh {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+/**
+ * `color-mix()` is Safari 16.2 and later, and every surface in this product is
+ * built from it. Without a fallback the cards lose their background entirely
+ * and text lands straight on the map. Solid approximations, no transparency.
+ */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .surface,
+  .glass,
+  .float-card {
+    background: #0e131e;
+    border-color: #2a3549;
+  }
+  .leaflet-tooltip.fp-cine-label {
+    background: #05070b;
+  }
+}
+
+/**
+ * iOS keeps momentum scrolling opt-in inside overflow containers on older
+ * versions, and without it the sheets feel stuck rather than scrollable.
+ */
+.overflow-y-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
 @utility safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -635,8 +682,17 @@ body {
  * is scenery being flown through, not an instrument being read, and a zoom
  * button on a cinematic shot is a scroll bar in a film.
  */
+/**
+ * Brighter than the instrument map, not darker.
+ *
+ * The first draft dropped the basemap two stops so nothing competed with the
+ * floating cards, and the result was that the flight into Delhi happened in
+ * near-darkness — the one moment the city should actually be legible. The
+ * cards carry their own backdrop blur and do not need the map dimmed to be
+ * readable, so the map gets its light back.
+ */
 .fp-cinematic .leaflet-tile-pane {
-  filter: saturate(0.22) brightness(0.44) contrast(1.1);
+  filter: saturate(0.4) brightness(0.72) contrast(1.02);
 }
 
 /* Only a map nobody can drive hides its controls — a zoom button on a

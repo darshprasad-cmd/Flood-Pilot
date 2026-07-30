@@ -518,21 +518,23 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
           <UpdatedStamp computedAt={predict?.computedAt} />
         </span>
 
-        <div className="ms-auto flex items-center gap-2">
-          {scenarioMeta?.simulated ? (
-            <Badge tone="warn" className="hidden sm:inline-flex">
-              {t.common.simulated}
-            </Badge>
-          ) : (
-            <Badge tone="good" className="hidden sm:inline-flex">
-              {t.common.live}
-            </Badge>
-          )}
+        <div className="ms-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
+          {/* Wrapped rather than given `hidden` directly: Badge sets its own
+              `inline-flex`, and between two display utilities the stylesheet
+              order decides, not the class attribute — so the badge stayed
+              visible on a phone and pushed the language switcher off-screen. */}
+          <span className="hidden sm:block">
+            {scenarioMeta?.simulated ? (
+              <Badge tone="warn">{t.common.simulated}</Badge>
+            ) : (
+              <Badge tone="good">{t.common.live}</Badge>
+            )}
+          </span>
 
           <select
             value={scenario}
             onChange={(e) => setScenario(e.target.value)}
-            className="max-w-[9.5rem] rounded-lg border border-line bg-ink-850 px-2 py-1.5 text-[12px] text-fg outline-none focus:border-signal-500"
+            className="min-w-0 max-w-[6.5rem] flex-shrink rounded-lg border border-line bg-ink-850 px-2 py-1.5 text-[12px] text-fg outline-none focus:border-signal-500 sm:max-w-[9.5rem]"
             aria-label="Rainfall scenario"
           >
             {cityData?.scenarios.map((s) => (
