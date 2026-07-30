@@ -14,7 +14,7 @@
  * readable by whoever debugs it at 3am during a monsoon.
  */
 
-const VERSION = "disha-45d8abc";
+const VERSION = "disha-d1b17b0";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 
