@@ -5,119 +5,126 @@ Know the Safest Way Forward.
 दिशा (*disha*) is Hindi for direction. With AI it says what this is: something
 that tells you which way to go.
 
-दिशाAI predicts where Delhi waterlogs, how deep, and when. It then works out
-what that means for one person, in one vehicle, on one journey, and says what to
-do. Every recommendation shows its reasoning, and every prediction carries a
-confidence score computed from the state of its inputs.
+दिशाAI works out where Delhi is going to waterlog, how deep it will get and when.
+Then it takes that and answers the question you actually have, which is whether
+you should drive somewhere right now in the car you own. It shows you why it
+decided that, and it tells you how confident it is based on which of its data
+sources it could reach.
 
 Live at <https://dishaai-ncr.netlify.app>.
 
 > The GitHub repo is still called `Flood-Pilot`, from before the rename. The
 > package is `dishaai` and every user-facing string reads दिशाAI.
 
-## ShriTeq 2026 — Hackathon submission
+## ShriTeq 2026
 
-Built for **ShriTeq 2026**, Senior Hackathon (Tier 1), by a team from **Vasant
-Valley School**.
+Our submission for the Senior Hackathon, Tier 1. We are a team from Vasant Valley
+School.
 
-**Theme: AI Agents for Industry Breakthroughs.** The industry is urban flood
-management and the mobility that fails around it. Delhi loses roads to
-waterlogging every monsoon, and the information needed to avoid them exists —
-rainfall forecasts, drain capacity, elevation, historical waterlogging registers
-— but it sits in separate places, in formats nobody reads while standing in the
-rain. The bottleneck is not sensing. It is the reasoning between a forecast and
-a decision.
+The theme this year is AI Agents for Industry Breakthroughs. We picked urban
+flood management, and specifically the way it breaks road travel in Delhi.
 
-दिशाAI is a fleet of specialised agents that closes that gap for two very
-different users: a person deciding whether to drive, and a control room deciding
-where to send pumps.
+Every monsoon the same roads go under. Minto Bridge, the Ring Road near ITO, the
+Zakhira underpass. The frustrating part is that the data to see it coming already
+exists. There are rainfall forecasts, drain capacity records, elevation surveys
+and the PWD waterlogging register. What nobody has is the layer in between: the
+thing that reads all of it and tells one person, in one car, whether to leave
+now. That gap is what we built for.
 
-### The agent layer
+दिशाAI answers that question for a commuter, and a related one for a control
+room deciding where to send pumps.
 
-`src/lib/agents/` — six agents behind one orchestrator, each with a typed
-contract in `base.ts` and each required to return its reasoning, not just its
-answer.
+### The agents
+
+There are six of them in `src/lib/agents/`, sitting behind an orchestrator. They
+share a typed contract defined in `base.ts`, and the contract forces every agent
+to hand back its reasoning along with its answer. You cannot return a verdict
+without saying why.
 
 | Agent | File | What it decides |
 | --- | --- | --- |
-| Prediction | `core-agents.ts` | Runs the flood engine, flags the worst segments, reports which data sources were reachable |
-| Route | `core-agents.ts` | Compares journeys under time-dependent risk, refuses to return a route it believes is impassable |
-| Vehicle | `core-agents.ts` | Converts a vehicle into a survivable wading depth and warns when a leg is close to that limit |
-| Infrastructure | `infrastructure-agent.ts` | Reasons over drains, pumping stations and the waterlogging register |
-| Citizen | `citizen-agent.ts` | Weighs ground reports, verification confidence and clustering |
-| Decision | `decision-agent.ts` | Turns all of the above into one instruction a person can act on |
+| Prediction | `core-agents.ts` | Runs the flood engine, flags the worst segments, reports which data sources it could actually reach |
+| Route | `core-agents.ts` | Compares journeys under changing risk, and refuses to hand back a route it thinks is impassable |
+| Vehicle | `core-agents.ts` | Works out how deep water can get before your specific vehicle stops, and warns when a leg is close to it |
+| Infrastructure | `infrastructure-agent.ts` | Reads drains, pumping stations and the waterlogging register |
+| Citizen | `citizen-agent.ts` | Weighs ground reports against verification confidence and clustering |
+| Decision | `decision-agent.ts` | Turns all of that into one instruction someone can act on |
 
-`orchestrator.ts` plans the run, fans the agents out, and merges their findings
-into a single brief. This is the "autonomous workflow" aspect of the prompt: the
-user asks one question — *is it safe to travel?* — and a multi-step pipeline
-executes without further prompting.
+`orchestrator.ts` plans the run, sends the agents off, and merges what comes back
+into a single brief. That is the autonomous workflow part of the prompt. You ask
+one question, "is it safe to travel", and a multi-step pipeline runs itself
+without being prompted again.
 
 ### Why this is not a chat wrapper
 
-The prompt encourages building your own models rather than calling somebody
-else's. There is no LLM in the decision path, and no API key is required to run
-this repository. The intelligence is ours:
+The prompt says teams are encouraged to build their own models instead of calling
+somebody else's, so we did. There is no LLM anywhere in the decision path and you
+do not need an API key to run this repo. Four things do the actual work:
 
-- A **19-feature scoring model** (`src/lib/engine/`) over an ordered feature
-  spec, producing signed per-feature contributions — the same idea as SHAP
-  values — so every probability can be decomposed into what drove it.
-- A **lumped-reservoir hydrology simulation** that produces a depth hydrograph
-  per road segment: onset, peak, and recovery over time, not a static score.
-- **Time-dependent routing** — a Dijkstra variant that evaluates each segment's
-  depth *at the minute the driver would arrive there*, which is why the safest
-  route is often not the shortest.
-- A **live-learning calibration loop** that compares predictions against
-  citizen-reported outcomes and adjusts per-segment bias and depth.
+- A scoring model in `src/lib/engine/` with 19 features in a fixed order. It
+  returns a signed contribution per feature, which is the same idea as SHAP
+  values, so any probability can be broken back down into what caused it.
+- A hydrology simulation that treats each road as a small reservoir and produces
+  a depth curve over time. You get onset, peak and recovery rather than one
+  number.
+- Routing that accounts for time. It is Dijkstra, but each segment is scored at
+  the depth it will be when you actually arrive there, not the depth it is now.
+  This is why the safest route often is not the shortest one.
+- A calibration loop that checks old predictions against what people reported on
+  the ground and nudges the per-segment bias and depth.
 
-Explainability is enforced by the type system: a prediction carries
-`NonEmpty<Explanation>`, so a model that cannot say why it decided something
-will not compile.
+We also made explainability a type error rather than a convention. Predictions
+carry `NonEmpty<Explanation>`, so a model that cannot explain itself will not
+compile.
 
-### How it maps to the four aspects of the prompt
+### How it lines up with the prompt
 
-| Prompt aspect | In this repo |
+| Prompt aspect | Where it is |
 | --- | --- |
-| Industry-specific intelligence | Delhi's drainage graph, vehicle wading physics, and the municipal waterlogging register — domain knowledge a general model does not have |
-| Autonomous workflows | `orchestrator.ts` plans and executes a multi-agent run from a single question |
-| Decision making & operational excellence | `/app` for one driver; `/gov` for a control room ranking where to intervene |
-| Discovery & research | Per-feature contributions and the calibration loop surface *which* roads the model systematically gets wrong |
+| Industry-specific intelligence | Delhi's drainage graph, vehicle wading limits, and the PWD waterlogging register. A general model has none of this |
+| Autonomous workflows | `orchestrator.ts` runs a whole multi-agent pass off one question |
+| Decision making | `/app` for a driver, `/gov` for a control room deciding where to intervene |
+| Discovery and research | Feature contributions and the calibration loop show which roads the model keeps getting wrong |
 
 ### Business model
 
-Free for the public, permanently — a flood warning behind a paywall is worthless.
-Revenue comes from the two parties for whom this is infrastructure rather than a
-consumer app: **municipal and disaster-management bodies**, who need the `/gov`
-operations view, historical calibration and API access; and **fleet and logistics
-operators**, for whom a flooded route is a quantifiable loss per vehicle per hour.
-The marginal cost of an additional citizen user is close to zero, which is what
-makes the free tier sustainable and the ground-report network — the thing that
-makes the model better — grow for free.
+The public app stays free. We think charging someone for a flood warning is the
+wrong product, and it would also kill the ground reports that make the model
+better over time.
 
-Detailed financials, market sizing and growth modelling are in the pitch deck
-rather than this README.
+The money comes from the people who need this as infrastructure. Municipal and
+disaster-management bodies want the `/gov` view, the historical calibration and
+API access. Fleet and logistics operators can put a number on what a flooded
+route costs them per vehicle per hour, which makes it an easy thing to sell.
+Adding another citizen user costs us almost nothing, so the free tier holds up.
 
-### Where to look, by judging criterion
+Market sizing, unit economics and growth projections are in the pitch deck, not
+here.
 
-| Criterion | Start here |
+### Where to look
+
+If you are reading this to review the code, these are the useful entry points.
+
+| Looking for | Start at |
 | --- | --- |
-| Technical accomplishment | `src/lib/engine/`, `src/lib/hazard/`, `src/lib/routing/safe-route.ts` |
-| Innovation | Time-dependent routing and the calibration loop |
-| UI and experience | `src/components/app/`, `src/app/globals.css` |
-| Source code quality | Four runtime dependencies; `tsconfig.json` strict; see below |
-| Adherence to the prompt | `src/lib/agents/` |
+| The hard technical work | `src/lib/engine/`, `src/lib/hazard/`, `src/lib/routing/safe-route.ts` |
+| What is actually novel | Time-dependent routing, and the calibration loop |
+| UI | `src/components/app/`, `src/app/globals.css` |
+| Code quality | Four runtime dependencies, `strict` TypeScript |
+| The agents | `src/lib/agents/` |
 
-### Originality and AI usage
+### Originality and AI use
 
-All source in this repository was written for this competition. There is no
-template, no site builder, and no UI kit — the design system, charts, map layers,
-service worker and animations are hand-written. The four runtime dependencies are
-listed below.
+Everything here was written for this competition. No template, no site builder,
+no component library. The design system, the charts, the map layers, the service
+worker and the animations are all written by hand, which is why the dependency
+list is four lines long.
 
-AI coding assistance was used during development, which the competition rules
-permit. The architecture, the flood model, the routing algorithm and the product
-decisions are the team's own; the parts a reader is most likely to test —
-hydrology, scoring, routing, explainability — are original work and are
-documented in `/about` and in the sections below.
+We used AI coding assistants while building, which the rules allow. The
+architecture, the flood model, the routing algorithm and the product decisions
+are ours. The parts most worth testing, meaning the hydrology, the scoring, the
+routing and the explanations, are original and are written up in `/about` and
+further down this file.
 
 ## Running it
 
