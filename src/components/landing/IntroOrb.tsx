@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Wordmark } from "@/components/brand/Logo";
+import { BRAND } from "@/lib/brand";
 
 /**
  * The opening shot.
@@ -25,9 +27,9 @@ import { useEffect, useRef, useState } from "react";
  */
 
 const STORAGE_KEY = "disha.intro.seen";
-/** Ignition, ripples, and a beat to breathe before the dissolve. */
-const HOLD_MS = 2100;
-const FADE_MS = 750;
+/** Ignition, ripples, wordmark, tagline — then a beat before the dissolve. */
+const HOLD_MS = 3000;
+const FADE_MS = 700;
 
 export default function IntroOrb() {
   // "pending" until we know whether this browser wants it at all — rendering
@@ -109,39 +111,68 @@ export default function IntroOrb() {
       }`}
       aria-hidden
     >
-      {/* Water leaving the source. Staggered so it reads as a sequence of
-          waves rather than one thick expanding band. */}
-      {[0, 1, 2].map((i) => (
+      <div className="relative flex flex-col items-center">
+        {/* The orb and everything that radiates from it. Fixed height so the
+            wordmark below does not jump as the rings grow. */}
+        <div className="relative flex h-56 w-56 items-center justify-center">
+          {/* Water leaving the source. Staggered so it reads as a sequence of
+              waves rather than one thick expanding band. */}
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="animate-ripple absolute h-32 w-32 rounded-full border"
+              style={{
+                borderColor: "rgba(47,191,111,0.5)",
+                animationDelay: `${420 + i * 300}ms`,
+              }}
+            />
+          ))}
+
+          <span
+            className="animate-orb-halo absolute h-56 w-56 rounded-full blur-3xl"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(47,191,111,0.55), rgba(47,191,111,0.06) 60%, transparent 72%)",
+            }}
+          />
+
+          <span
+            className="animate-orb relative h-[70px] w-[70px] rounded-full"
+            style={{
+              // Lit from the upper left so it reads as a sphere, not a disc.
+              background:
+                "radial-gradient(circle at 38% 34%, #d6f7e5, #4fd894 34%, #2fbf6f 62%, #148a4f 100%)",
+              boxShadow:
+                "0 0 28px 6px rgba(47,191,111,0.55), 0 0 90px 26px rgba(47,191,111,0.28), inset 0 0 22px rgba(255,255,255,0.28)",
+            }}
+          />
+
+          {/* One pass of light across the orb — the instrument checking itself. */}
+          <span
+            className="animate-scan pointer-events-none absolute h-[2px] w-40"
+            style={{
+              animationDelay: "700ms",
+              background:
+                "linear-gradient(90deg, transparent, rgba(214,247,229,0.85), transparent)",
+            }}
+          />
+        </div>
+
+        {/* The name surfacing out of the glow. */}
         <span
-          key={i}
-          className="animate-ripple absolute h-40 w-40 rounded-full border"
-          style={{
-            borderColor: "rgba(47,191,111,0.55)",
-            animationDelay: `${450 + i * 320}ms`,
-          }}
-        />
-      ))}
+          className="animate-intro-rise -mt-4"
+          style={{ animationDelay: "1250ms" }}
+        >
+          <Wordmark size={44} />
+        </span>
 
-      {/* Halo */}
-      <span
-        className="animate-orb-halo absolute h-64 w-64 rounded-full blur-3xl"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(47,191,111,0.55), rgba(47,191,111,0.06) 60%, transparent 72%)",
-        }}
-      />
-
-      {/* Core */}
-      <span
-        className="animate-orb relative h-20 w-20 rounded-full"
-        style={{
-          // Lit from the upper left so it reads as a sphere rather than a disc.
-          background:
-            "radial-gradient(circle at 38% 34%, #d6f7e5, #4fd894 34%, #2fbf6f 62%, #148a4f 100%)",
-          boxShadow:
-            "0 0 28px 6px rgba(47,191,111,0.55), 0 0 90px 26px rgba(47,191,111,0.28), inset 0 0 22px rgba(255,255,255,0.28)",
-        }}
-      />
+        <span
+          className="animate-intro-rise mt-4 text-[12.5px] tracking-[0.16em] text-fg-faint uppercase"
+          style={{ animationDelay: "1850ms" }}
+        >
+          {BRAND.tagline.replace(/\.$/, "")}
+        </span>
+      </div>
     </div>
   );
 }

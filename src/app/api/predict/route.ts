@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_CITY_ID, cityExists } from "@/lib/cities/registry";
 import { runFloodEngine } from "@/lib/engine";
-import { serializeSegment, summarise } from "@/lib/api/serialize";
+import { serializeSegment, summarise, summariseForecast } from "@/lib/api/serialize";
 import { resolveScenario } from "@/lib/signals/scenarios";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +47,7 @@ export async function GET(request: Request) {
       computeMs: result.computeMs,
       segments,
       summary: summarise(result),
+      forecast: summariseForecast(result.bundle.weather, result.predictions.values()),
       sources: result.sources,
       signalSources: result.bundle.sources,
       gauges: result.bundle.gauges,

@@ -127,13 +127,13 @@ export function TodayPanel({
   ].slice(0, 3);
 
   return (
-    <div className="space-y-3 p-3">
+    <div className="space-y-4 p-4">
       {/* ── 1. Is it safe to travel? ─────────────────────────────────────── */}
       <section
         className="animate-arrive overflow-hidden rounded-[var(--radius-panel)] border"
         style={{ borderColor: `${tone.color}40`, background: tone.bg }}
       >
-        <div className="px-5 pb-4 pt-4">
+        <div className="px-6 pb-5 pt-5">
           <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint">
             {greeting(t)} · {t.dashboard.qSafeToTravel}
           </p>
@@ -158,7 +158,7 @@ export function TodayPanel({
           ) : null}
         </div>
 
-        <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: `${tone.color}26` }}>
+        <div className="flex gap-2 border-t px-5 py-4" style={{ borderColor: `${tone.color}26` }}>
           <button
             type="button"
             onClick={onPlanJourney}
@@ -195,13 +195,13 @@ export function TodayPanel({
 
       {/* ── 3. Is my area at risk? ───────────────────────────────────────── */}
       <section className="surface overflow-hidden">
-        <div className="flex items-baseline justify-between gap-3 px-4 pt-3.5">
+        <div className="flex items-baseline justify-between gap-3 px-5 pt-4">
           <p className="eyebrow">{t.dashboard.qMyArea}</p>
           {home ? (
             <span className="text-[11px] text-fg-faint">{home.ward}</span>
           ) : null}
         </div>
-        <p className="px-4 pb-3 pt-1.5 text-[14px] font-medium">
+        <p className="px-5 pb-4 pt-2 text-[14px] font-medium">
           {areaState === "flooding"
             ? t.dashboard.areaFlooding
             : areaState === "watch"
@@ -216,7 +216,7 @@ export function TodayPanel({
                 <button
                   type="button"
                   onClick={() => onSelectSegment(segment.id)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-start transition-colors hover:bg-ink-800/60"
+                  className="flex w-full items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-ink-800/60"
                 >
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
@@ -240,9 +240,9 @@ export function TodayPanel({
 
       {/* ── 4. Which route is safest? ────────────────────────────────────── */}
       <section className="surface overflow-hidden">
-        <p className="eyebrow px-4 pt-3.5">{t.dashboard.qRoute}</p>
+        <p className="eyebrow px-5 pt-4">{t.dashboard.qRoute}</p>
         {comparison ? (
-          <div className="px-4 pb-4 pt-2">
+          <div className="px-5 pb-5 pt-2.5">
             <p className="text-[14px] font-medium">
               {comparison.safeRouteExists
                 ? t.route.recommended
@@ -276,7 +276,7 @@ export function TodayPanel({
             ) : null}
           </div>
         ) : (
-          <p className="px-4 pb-4 pt-1.5 text-[13px] text-fg-muted">
+          <p className="px-5 pb-5 pt-2 text-[13px] text-fg-muted">
             {t.dashboard.noJourneyYet}
           </p>
         )}
@@ -284,15 +284,15 @@ export function TodayPanel({
 
       {/* ── 5. What should I expect? ─────────────────────────────────────── */}
       <section className="surface overflow-hidden">
-        <p className="eyebrow px-4 pt-3.5">{t.dashboard.qDisruptions}</p>
+        <p className="eyebrow px-5 pt-4">{t.dashboard.qDisruptions}</p>
         {disruptions.length === 0 ? (
-          <p className="px-4 pb-4 pt-1.5 text-[13px] text-fg-muted">
+          <p className="px-5 pb-5 pt-2 text-[13px] text-fg-muted">
             {t.dashboard.nothingExpected}
           </p>
         ) : (
           <ul className="mt-1 divide-y divide-line">
             {disruptions.map((item) => (
-              <li key={item.id} className="px-4 py-2.5">
+              <li key={item.id} className="px-5 py-3">
                 <p className="text-[12.5px] leading-snug text-fg">{item.text}</p>
                 {item.detail ? (
                   <p className="mt-0.5 text-[11.5px] leading-snug text-fg-faint">
@@ -307,7 +307,7 @@ export function TodayPanel({
 
       {/* ── Your places ──────────────────────────────────────────────────── */}
       <section className="surface overflow-hidden">
-        <div className="flex items-baseline justify-between gap-3 px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3 px-5 py-3.5">
           <p className="eyebrow">{t.dashboard.yourPlaces}</p>
           <button
             type="button"
@@ -332,7 +332,7 @@ export function TodayPanel({
               return (
                 <li
                   key={node.id}
-                  className="flex items-center gap-3 px-4 py-2.5"
+                  className="flex items-center gap-3 px-5 py-3"
                 >
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
@@ -367,7 +367,7 @@ function AnswerRow({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-[var(--radius-card)] border px-4 py-3.5 ${
+      className={`overflow-hidden rounded-[var(--radius-card)] border px-5 py-4 ${
         urgent
           ? "border-risk-severe/40 bg-risk-severe/[0.08]"
           : "border-line bg-ink-900/50"

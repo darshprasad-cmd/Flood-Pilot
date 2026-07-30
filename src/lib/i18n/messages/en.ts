@@ -166,6 +166,26 @@ export const en = {
       "{river} at {level} m — {status}. Danger level is {danger} m. Leave the floodplain.",
   },
 
+  forecast: {
+    tab: "Forecast",
+    rainNext12h: "Rain, next 12 hours",
+    totalExpected: "{mm} mm expected",
+    peakLine: "Heaviest {mm} mm/hr around {when}. The lighter bar is the wettest part of the city; the solid one is the average.",
+    noRain: "No meaningful rain forecast in the next twelve hours.",
+    whenRoadsChange: "When roads change",
+    nothingChanges: "No road is forecast to cross the action threshold today.",
+    modelDepth: "Modelled water depth",
+    axisMax: "peak",
+    peakRoadsAtRisk: "Roads at risk, peak",
+    modelId: "Model",
+    modelNote:
+      "Solid line is the deepest water anywhere in the city; dashed is the average across roads that have any. The dotted mark is 30 cm, where an ordinary car stops. This curve keeps climbing after the rain stops because the trunk drains are still surcharging.",
+    alreadyWet: "Already wet",
+    beyondWindow: "Past midnight",
+    caveat:
+      "Modelled from forecast rainfall, not observed water. Recovery times assume the pumps work.",
+  },
+
   dashboard: {
     tabToday: "Today",
     tabMap: "Map",

@@ -37,6 +37,7 @@ import {
 import { SegmentSheet } from "./SegmentSheet";
 import { JourneyForm, type JourneyFormState } from "./JourneyForm";
 import { TodayPanel } from "./TodayPanel";
+import { ForecastPanel, type ForecastDto } from "./ForecastPanel";
 import { ClusterList, type ClusterDto } from "./ReportSheet";
 import {
   LayersControl,
@@ -125,6 +126,8 @@ interface PredictPayload {
       depthCm: number;
       confidence: number;
       confidenceBand: string;
+      timeToFloodMin: number | null;
+      peakAtMin: number | null;
       recoveryMin: number | null;
       drainOverflowLikelihood: number;
     };
@@ -147,6 +150,7 @@ interface PredictPayload {
     levelM: number;
     status: string;
   }[];
+  forecast: ForecastDto | null;
   computedAt: string;
   degraded: boolean;
 }
@@ -203,10 +207,10 @@ interface CommunityPayload {
  * the map is the base layer and the other two become full-screen surfaces over
  * it, switched from a bottom bar within thumb reach.
  */
-type MobilePane = "today" | "map" | "plan" | "brief";
+type MobilePane = "today" | "forecast" | "map" | "plan" | "brief";
 
 /** Which surface the left column is showing on a wide screen. */
-type LeftTab = "today" | "plan";
+type LeftTab = "today" | "forecast" | "plan";
 
 const DEFAULT_FORM: JourneyFormState = {
   origin: "dwarka",
@@ -504,7 +508,7 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
       {/* Top bar */}
-      <header className="glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+      <header className="glass safe-top z-30 flex shrink-0 items-center gap-2.5 border-b px-4 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
         <Link href="/">
           <Lockup size={14} />
         </Link>
@@ -577,23 +581,29 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
       <div className="relative flex min-h-0 flex-1 lg:flex-row">
         {/* Left: Today, and the journey form behind it. Full-screen on mobile. */}
         <aside
-          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[344px] lg:shrink-0 lg:border-e lg:border-line lg:bg-transparent ${
-            mobilePane === "today" || mobilePane === "plan" ? "block" : "hidden"
+          className={`absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-ink-950 lg:static lg:z-auto lg:block lg:w-[372px] lg:shrink-0 lg:border-e lg:border-line lg:bg-transparent ${
+            mobilePane === "today" || mobilePane === "plan" || mobilePane === "forecast"
+              ? "block"
+              : "hidden"
           }`}
         >
           {/* On a wide screen this column carries both surfaces, so it needs
               its own switch. On a phone the bottom bar already made the choice. */}
-          <div className="sticky top-0 z-10 hidden gap-1 border-b border-line bg-ink-950/95 px-3 py-2 backdrop-blur lg:flex">
-            {(["today", "plan"] as LeftTab[]).map((id) => (
+          <div className="sticky top-0 z-10 hidden gap-1 border-b border-line bg-ink-950/95 px-4 py-2.5 backdrop-blur lg:flex">
+            {(["today", "forecast", "plan"] as LeftTab[]).map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setLeftTab(id)}
-                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                className={`rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors ${
                   leftTab === id ? "bg-ink-800 text-fg" : "text-fg-faint hover:text-fg-muted"
                 }`}
               >
-                {id === "today" ? t.dashboard.tabToday : t.dashboard.tabJourney}
+                {id === "today"
+                  ? t.dashboard.tabToday
+                  : id === "forecast"
+                    ? t.forecast.tab
+                    : t.dashboard.tabJourney}
               </button>
             ))}
           </div>
@@ -604,6 +614,14 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
               <Skeleton className="h-9" />
               <Skeleton className="h-9" />
             </div>
+          ) : leftTab === "forecast" ? (
+            <ForecastPanel
+              forecast={predict?.forecast ?? null}
+              segments={predict?.segments ?? []}
+              profile={profile}
+              nodes={cityData.nodes}
+              onSelectSegment={setSelectedSegmentId}
+            />
           ) : showToday ? (
             <TodayPanel
               profile={profile}
@@ -716,13 +734,13 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
             mobilePane === "brief" ? "block" : "hidden"
           }`}
         >
-          <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-ink-950/95 px-3 py-2 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none">
+          <div className="sticky top-0 z-10 flex gap-1 border-b border-line bg-ink-950/95 px-4 py-2.5 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none">
             {(["journey", "city", "community"] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                className={`rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors ${
                   tab === id
                     ? "bg-ink-800 text-fg"
                     : "text-fg-faint hover:text-fg-muted"
@@ -737,7 +755,7 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
             ))}
           </div>
 
-          <div className="space-y-4 p-3">
+          <div className="space-y-5 p-4">
             {tab === "journey" ? (
               brief ? (
                 <>
@@ -828,6 +846,7 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
         {(
           [
             ["today", t.dashboard.tabToday, <TodayIcon key="t" />],
+            ["forecast", t.forecast.tab, <ForecastIcon key="f" />],
             ["map", t.app.tabMap, <MapIcon key="m" />],
             ["plan", t.app.tabPlan, <PlanIcon key="p" />],
             ["brief", t.app.tabBrief, <BriefIcon key="b" />],
@@ -838,10 +857,10 @@ export default function AppShell({ onEditSetup }: { onEditSetup?: () => void }) 
             type="button"
             onClick={() => {
               setMobilePane(id);
-              if (id === "today" || id === "plan") setLeftTab(id);
+              if (id === "today" || id === "plan" || id === "forecast") setLeftTab(id);
             }}
             aria-current={mobilePane === id ? "page" : undefined}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[9.5px] font-medium transition-colors ${
               mobilePane === id ? "text-signal-300" : "text-fg-faint"
             }`}
           >
@@ -882,6 +901,25 @@ function TodayIcon() {
         d="M10 6.2v4l2.6 1.6"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ForecastIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path
+        d="M6.2 12.5a3 3 0 0 1 .3-6 4.2 4.2 0 0 1 8 1.1 2.6 2.6 0 0 1-.4 5H6.2Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.6 15.2v1.6M10 15.6v1.8M12.4 15.2v1.6"
+        stroke="currentColor"
+        strokeWidth="1.4"
         strokeLinecap="round"
       />
     </svg>
@@ -962,7 +1000,7 @@ function CityConditions({
             predict.degraded ? <Badge tone="warn">Degraded inputs</Badge> : null
           }
         />
-        <div className="grid grid-cols-2 gap-4 px-4 py-4">
+        <div className="grid grid-cols-2 gap-5 px-5 py-5">
           <Metric
             label={t.stats.roadsAtRisk}
             value={predict.summary.segmentsAtRisk}
@@ -983,7 +1021,7 @@ function CityConditions({
           />
         </div>
         {showWorking ? (
-          <div className="border-t border-line px-4 py-3">
+          <div className="border-t border-line px-5 py-4">
             <ConfidenceMeter
               score={predict.summary.meanConfidence}
               band={
@@ -1034,7 +1072,7 @@ function CityConditions({
               <button
                 type="button"
                 onClick={() => onSelect(segment.id)}
-                className="w-full px-4 py-2.5 text-left transition-colors hover:bg-ink-800/70"
+                className="w-full px-5 py-3 text-left transition-colors hover:bg-ink-800/70"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="truncate text-[12.5px] font-medium text-fg">
@@ -1128,7 +1166,7 @@ function CommunityPanel({ community }: { community: CommunityPayload }) {
           />
           <ul className="divide-y divide-line">
             {community.congestionForecast.slice(0, 8).map((f) => (
-              <li key={f.segmentId} className="px-4 py-2.5">
+              <li key={f.segmentId} className="px-5 py-3">
                 <p className="text-[12.5px] leading-snug text-fg">{f.headline}</p>
                 {f.drivers.length > 0 ? (
                   <p className="mt-1 text-[11px] leading-snug text-fg-faint">
@@ -1154,7 +1192,7 @@ function CommunityPanel({ community }: { community: CommunityPayload }) {
             {community.signalDelays.slice(0, 8).map((d) => (
               <li
                 key={d.nodeId}
-                className="flex items-baseline justify-between gap-3 px-4 py-2"
+                className="flex items-baseline justify-between gap-3 px-5 py-2.5"
               >
                 <span className="truncate text-[12px] text-fg-muted">{d.name}</span>
                 <span className="numeric shrink-0 text-[12px] font-semibold text-fg">
@@ -1166,7 +1204,7 @@ function CommunityPanel({ community }: { community: CommunityPayload }) {
               </li>
             ))}
           </ul>
-          <p className="border-t border-line px-4 py-2.5 text-[10.5px] leading-snug text-fg-faint">
+          <p className="border-t border-line px-5 py-3.5 text-[11px] leading-relaxed text-fg-faint">
             Delhi&apos;s signals are adaptive and no timing schedule is published.
             These are estimates of how long you will actually wait, derived from
             junction size, road class, time of day and congestion — not cycle
@@ -1176,7 +1214,7 @@ function CommunityPanel({ community }: { community: CommunityPayload }) {
       ) : null}
 
       <Card>
-        <div className="px-4 py-3">
+        <div className="px-5 py-4">
           <p className="text-[11.5px] leading-snug text-fg-faint">
             {community.reportCount} community report
             {community.reportCount === 1 ? "" : "s"} in the last 30 days. Select

@@ -39,6 +39,8 @@ export interface SegmentSummaryDto {
     riskLevel: string;
     riskColor: string;
     timeToFloodMin: number | null;
+    /** Minutes to the crest. The forecast band marks it. */
+    peakAtMin: number | null;
     timeToImpassableMin: number | null;
     recoveryMin: number | null;
     drainOverflowLikelihood: number;
@@ -101,6 +103,7 @@ export function serializeSegment(
       riskLevel: state.riskLevel,
       riskColor: RISK_META[state.riskLevel].color,
       timeToFloodMin: state.timeToFloodMin,
+      peakAtMin: state.peakAtMin,
       timeToImpassableMin: state.timeToImpassableMin,
       recoveryMin: state.recoveryMin,
       drainOverflowLikelihood: round3(state.drainOverflowLikelihood),
@@ -199,6 +202,235 @@ export function summarise(result: EngineResult): CitySummaryDto {
     nextOnsetMin,
     worstSegment: worst,
   };
+}
+
+export interface ForecastDto {
+  issuedAt: string;
+  /** Hourly, out to twelve hours. */
+  rain: { minutesFromNow: number; mmPerHr: number; peakMmPerHr: number; probability: number }[];
+  /** Highest intensity anywhere in the city, and when. */
+  peakMmPerHr: number;
+  peakInMin: number | null;
+  eventTotalMm: number;
+  /**
+   * What the flood model makes of that rain.
+   *
+   * Rainfall is the input; this is the output, on the same time axis so the two
+   * can be read against each other. Delhi's whole problem is that the second
+   * curve does not follow the shape of the first — the trunk drains keep
+   * surcharging for hours after the sky clears.
+   */
+  model: {
+    id: string;
+    /** Mean confidence across every road, 0..1. */
+    confidence: number;
+    /**
+     * Deepest water the model expects anywhere, at any time in the window.
+     *
+     * Taken from the raw curves rather than from the sampled points below. A
+     * crest that falls between two samples is still a crest, and reporting the
+     * sampled value here made the headline figure disagree with the per-road
+     * numbers on the same screen by several centimetres.
+     */
+    peakDepthCm: number;
+    peakAtMin: number | null;
+    curve: {
+      minutesFromNow: number;
+      /** Deepest water modelled anywhere in the city at this time, cm. */
+      maxDepthCm: number;
+      /** Mean across roads that have any water at all, cm. */
+      meanDepthCm: number;
+      /** Roads at or over the action threshold at this time. */
+      roadsAtRisk: number;
+      /** Roads an ordinary car cannot cross at this time. */
+      roadsImpassable: number;
+    }[];
+  } | null;
+}
+
+/** Depth in cm at an arbitrary minute, interpolated along the model's curve. */
+function depthAt(
+  curve: { minutesFromNow: number; value: number }[],
+  minute: number,
+): number {
+  if (curve.length === 0) return 0;
+  if (minute <= curve[0].minutesFromNow) return curve[0].value;
+  for (let i = 1; i < curve.length; i++) {
+    const a = curve[i - 1];
+    const b = curve[i];
+    if (minute <= b.minutesFromNow) {
+      const span = b.minutesFromNow - a.minutesFromNow;
+      const k = span === 0 ? 0 : (minute - a.minutesFromNow) / span;
+      return a.value + (b.value - a.value) * k;
+    }
+  }
+  return curve[curve.length - 1].value;
+}
+
+/** Vehicle-relevant depths, matching the waterlogging engine's thresholds. */
+const ACTION_CM = 8;
+const IMPASSABLE_CM = 30;
+
+/**
+ * The rainfall the city is about to get.
+ *
+ * Averaged across the sampled grid, with the peak carried alongside rather
+ * than folded in. Delhi routinely has 40 mm falling on one side of the city
+ * and nothing on the other, so a single averaged number would understate the
+ * risk to whoever is standing under the cell that is actually raining.
+ */
+export function summariseForecast(
+  weather: {
+    issuedAt: string;
+    cells: {
+      curve: { minutesFromNow: number; mmPerHr: number; probability: number }[];
+      peakIntensityMmHr: number;
+      peakInMin: number | null;
+      eventTotalMm: number;
+    }[];
+  },
+  predictions?: Iterable<HazardPrediction>,
+): ForecastDto {
+  const cells = weather.cells;
+  const rain: ForecastDto["rain"] = [];
+
+  for (let hour = 0; hour <= 12; hour++) {
+    const minute = hour * 60;
+    let sum = 0;
+    let peak = 0;
+    let prob = 0;
+    let counted = 0;
+
+    for (const cell of cells) {
+      const point = nearestPoint(cell.curve, minute);
+      if (!point) continue;
+      sum += point.mmPerHr;
+      peak = Math.max(peak, point.mmPerHr);
+      prob = Math.max(prob, point.probability);
+      counted++;
+    }
+    if (counted === 0) continue;
+
+    rain.push({
+      minutesFromNow: minute,
+      mmPerHr: round1(sum / counted),
+      peakMmPerHr: round1(peak),
+      probability: round2(prob),
+    });
+  }
+
+  let peakMmPerHr = 0;
+  let peakInMin: number | null = null;
+  let eventTotalMm = 0;
+  for (const cell of cells) {
+    if (cell.peakIntensityMmHr > peakMmPerHr) {
+      peakMmPerHr = cell.peakIntensityMmHr;
+      peakInMin = cell.peakInMin;
+    }
+    eventTotalMm = Math.max(eventTotalMm, cell.eventTotalMm);
+  }
+
+  return {
+    issuedAt: weather.issuedAt,
+    rain,
+    peakMmPerHr: round1(peakMmPerHr),
+    peakInMin,
+    eventTotalMm: round1(eventTotalMm),
+    model: summariseModelCurve(predictions),
+  };
+}
+
+/**
+ * The model's own twelve hours, aggregated over every road.
+ *
+ * Read off each road's `onsetCurve` — the depth series the hazard model already
+ * produced — rather than re-deriving anything. If this disagrees with the road
+ * bands on the same screen, the engine is inconsistent with itself, which is
+ * worth knowing.
+ */
+function summariseModelCurve(
+  predictions?: Iterable<HazardPrediction>,
+): ForecastDto["model"] {
+  if (!predictions) return null;
+
+  const list = [...predictions];
+  if (list.length === 0) return null;
+
+  const curve: NonNullable<ForecastDto["model"]>["curve"] = [];
+
+  // The true crest, read off the raw curves. Delhi's underpasses fill and drain
+  // fast enough that an hourly grid can miss a two-metre peak entirely.
+  let peakDepthCm = 0;
+  let peakAtMin: number | null = null;
+  for (const prediction of list) {
+    for (const point of prediction.onsetCurve) {
+      if (point.value > peakDepthCm) {
+        peakDepthCm = point.value;
+        peakAtMin = point.minutesFromNow;
+      }
+    }
+  }
+
+  // Half-hourly. Twenty-five points is still a trivial payload and the shape of
+  // a flash-flood curve is lost at hourly resolution.
+  for (let step = 0; step <= 24; step++) {
+    const minute = step * 30;
+    let max = 0;
+    let sum = 0;
+    let wet = 0;
+    let atRisk = 0;
+    let impassable = 0;
+
+    for (const prediction of list) {
+      const depth = depthAt(prediction.onsetCurve, minute);
+      if (depth > max) max = depth;
+      // Averaged over roads with water on them, not over all 120 — otherwise
+      // a genuine emergency on eight roads averages down to nothing.
+      if (depth > 0.5) {
+        sum += depth;
+        wet++;
+      }
+      if (depth >= ACTION_CM) atRisk++;
+      if (depth >= IMPASSABLE_CM) impassable++;
+    }
+
+    curve.push({
+      minutesFromNow: minute,
+      maxDepthCm: round1(max),
+      meanDepthCm: wet === 0 ? 0 : round1(sum / wet),
+      roadsAtRisk: atRisk,
+      roadsImpassable: impassable,
+    });
+  }
+
+  const confidence =
+    list.reduce((n, p) => n + (p.confidence?.score ?? 0), 0) / list.length;
+
+  return {
+    id: list[0].model?.id ?? "unknown",
+    confidence: round3(confidence),
+    peakDepthCm: round1(peakDepthCm),
+    peakAtMin,
+    curve,
+  };
+}
+
+/** The curve is denser near-term than later, so pick rather than index. */
+function nearestPoint<T extends { minutesFromNow: number }>(
+  curve: T[],
+  minute: number,
+): T | null {
+  let best: T | null = null;
+  let bestGap = Infinity;
+  for (const point of curve) {
+    const gap = Math.abs(point.minutesFromNow - minute);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = point;
+    }
+  }
+  // Beyond the end of the curve there is no forecast, only extrapolation.
+  return bestGap <= 90 ? best : null;
 }
 
 export function serializePrediction(prediction: HazardPrediction) {

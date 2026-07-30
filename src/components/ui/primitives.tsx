@@ -41,10 +41,10 @@ export function CardHeader({
 }) {
   return (
     <div
-      className={`flex items-start justify-between gap-4 border-b border-line px-4 py-3 ${className}`}
+      className={`flex items-start justify-between gap-4 border-b border-line px-5 py-4 ${className}`}
     >
       <div className="min-w-0">
-        {eyebrow ? <p className="eyebrow mb-1.5">{eyebrow}</p> : null}
+        {eyebrow ? <p className="eyebrow mb-2">{eyebrow}</p> : null}
         <div className="truncate text-sm font-semibold tracking-tight">{title}</div>
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}
