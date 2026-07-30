@@ -35,6 +35,73 @@ The development access code for `/gov` is `delhi-flood-control`. Set
 `GOV_ACCESS_CODE` to change it. It is already set to something else on the
 deployed site.
 
+## Tech stack
+
+Four runtime dependencies.
+
+```
+next       15    App Router, RSC, middleware, serverless and edge
+react      19
+react-dom  19
+leaflet    1.9   driven imperatively, not through react-leaflet
+```
+
+| Layer | Choice |
+| --- | --- |
+| Language | TypeScript 5.7, `strict` |
+| Styling | Tailwind v4, CSS-first `@theme`, no config file |
+| Build | Next 15 with PostCSS 8, Node 20 |
+| Maps | Leaflet 1.9 with the SVG renderer, CARTO dark basemap |
+| Storage | In-memory by default, PostGIS behind `DATABASE_URL` |
+| Offline | Hand-written service worker, 120 lines |
+| Hosting | Netlify. Serverless function plus one edge function for middleware |
+
+126 TypeScript files, roughly 31,900 lines.
+
+### What is deliberately absent
+
+No charting library. The rainfall bars are flex divs and the depth curve is a
+25-point SVG polygon, which is not worth 40 kB of gzip.
+
+No state management library. React context covers the two things that are
+genuinely global, language and profile.
+
+No i18n framework. `Messages` is derived from the English dictionary with
+literal types widened to `string`, so adding an English key is a compile error
+in the other six locales until it is translated.
+
+No ORM. The PostGIS adapter is parameterised SQL behind an interface. `pg` is
+imported through a variable specifier so neither TypeScript nor the bundler
+resolves it at build time when it is not installed.
+
+No service-worker toolchain, and no image pipeline: the PWA icon rasteriser in
+`scripts/make-icons.mjs` uses Node's built-in `zlib` and nothing else.
+
+### Data layer
+
+Live and keyless: Open-Meteo for rainfall, observed history, elevation and river
+discharge. OpenStreetMap via Overpass for drains, culverts, underpasses and water
+bodies, extracted offline into committed JSON (1,475 channels, 640 underpasses).
+
+Written and env-gated: IMD, CWC, Google Maps Platform. Each reports which
+provider actually answered, so a fallback is visible rather than silent.
+
+### Engine
+
+`HazardModel` is a generic contract and flooding is one registered hazard.
+Scoring goes through a swappable `ScoringModel` over a 19-feature ordered
+`FLOOD_FEATURE_SPEC`; the built-in heuristic and any future gradient-boosted
+model return the same signed contributions, which for a tree model is the SHAP
+vector.
+
+Above that: a lumped-reservoir hydrology model producing a hydrograph, a
+time-dependent Dijkstra that evaluates depth at the moment of arrival rather than
+at request time, vehicle survivability from intake height, and per-segment online
+calibration driven by verified citizen reports.
+
+`AgentEnvelope.explanations` is typed `NonEmpty<Explanation>`, so an agent that
+returns an unexplained result does not compile.
+
 ## Delhi floods four different ways
 
 Most flood tools model rainfall and stop there. Delhi needs four models, because
